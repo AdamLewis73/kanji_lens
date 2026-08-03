@@ -1,0 +1,57 @@
+# KanjiLens — Agent Context
+
+Android app: scan Japanese text with the phone camera and learn kanji **in context** — 生 alone is "life", but 先生 is "teacher" and 生産 is "production". Users tap words on a frozen photo, see what they mean and which kanji compose them, save them to lists, and review with spaced repetition.
+
+**This file is loaded into every session. Keep it short** — it's a router, not documentation. Details live in `docs/`, read on demand.
+
+**If you are new to this project, read `docs/overview.md` first.** It has a worked end-to-end example of the main flow and a glossary of the Japanese-language terms the other docs assume.
+
+---
+
+## Hard rules
+
+Violating any of these destroys user data or forces a rewrite. Each links to fuller reasoning.
+
+1. **Never** call `fallbackToDestructiveMigration()` — it silently deletes the entire user database. Banned in all build types, including debug. (D-17)
+2. **Never** store dictionary row IDs in user data. Dictionary rebuilds reassign them, corrupting saved words with no error. Use the natural key: word text + reading. (D-11)
+3. User-data primary keys are **UUIDs**, never auto-increment — offline devices generate colliding integers, and it's unfixable afterward. (D-15)
+4. Every user-data row has `updated_at`, and deletions are **soft** (`deleted_at`), never hard `DELETE`. (D-16)
+5. Saved-item identity is **(text, reading)** — never text alone. 上手 is three different words. (D-12)
+6. `:domain` and `:data` modules **must not import `android.*`**. This is the iOS-portability line and cannot be retrofitted cheaply. (`architecture.md`)
+7. Room schema export stays **on**; generated schema JSON is committed to git. (D-18)
+8. Images are files on disk with **relative** paths in the DB — never BLOBs. (D-24)
+
+## Where things are
+
+| Need | Read |
+|---|---|
+| What the app is, worked example, glossary | `docs/overview.md` |
+| Why something was decided (numbered `D-##`) | `docs/decisions.md` |
+| Stack, modules, scan pipeline, navigation | `docs/architecture.md` |
+| Datasets, both schemas, migrations, backup | `docs/data-model.md` |
+| Screens, overlay, typography, interaction | `docs/ux.md` |
+| Expected values for silent-failure bugs (`V-##`) | `docs/verification.md` |
+| Phases, decision checkpoints, deferred backlog | `docs/roadmap.md` |
+| Current state of work in flight | `docs/progress/` |
+
+## Conventions
+
+- **Reference decisions by ID** in commits and code comments: `per D-07`.
+- **Decision IDs are permanent; decisions are not.** To change one: mark the old entry `SUPERSEDED by D-##`, leave its text intact, and append a new entry with the next unused ID. Never delete or renumber — the reasoning behind an abandoned path stops it being re-proposed later.
+- **Changing a decision means grepping `docs/` for its ID** — other docs and `verification.md` cases cite decisions, and a superseded decision leaves stale assertions behind. Full procedure at the top of `docs/decisions.md`.
+- **New decision** → append to `docs/decisions.md` with the next ID.
+- **Resolved open question** → promote it into `docs/decisions.md`; don't leave the answer only in a progress file.
+- **Finished phase** → update `docs/progress/`, the table in `docs/roadmap.md`, and the Status line below.
+
+## Communication
+
+Explain Android, Kotlin, and Compose concepts rather than assuming familiarity — these are new to the project owner. Analogies to SQL and Python land well; analogies to Android idiom do not.
+
+The project owner has asked to be **stopped before decisions that are expensive to reverse** — see the checkpoint table in `docs/roadmap.md`. Raise those before writing code rather than picking a default and proceeding.
+
+**Assume no code exists outside this repository.** Everything is written in-session and committed; there is no work-in-progress held elsewhere. If something appears to be missing, it has not been built yet.
+
+## Status
+
+**Current phase:** Phase 1 — Dictionary Builder (not started)
+**Nothing is implemented yet.** The repository contains documentation only.
