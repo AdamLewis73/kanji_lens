@@ -1,5 +1,7 @@
 # Kanji Lens
 
+By Adam Lewis
+
 An Android app for learning kanji **in context**.
 
 Kanji don't have fixed meanings in isolation. 生 alone is "life", but 先生 is "teacher" and 生産 is "production". 手 alone is "hand", but 上手 is "skilled" and 歌手 is "singer". Translation apps replace the Japanese, which destroys exactly the information a learner needs.
