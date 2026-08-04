@@ -33,6 +33,10 @@ Reading normalization (D-37) happens here: JmdictFurigana supplies readings in h
 
 **No camera at all.** Paste `先生と生産` into a text field, tokenize with Kuromoji, look up in Room, and render the word screen and kanji screen. This is where the app's actual value gets proven, and it's fully testable without any of the camera complexity.
 
+**Housekeeping for this phase — create a `/launch` skill.** There is no build-and-run command for this project yet; one was deliberately deferred because there was nothing to launch. Once the app module exists, add `.claude/skills/launch/SKILL.md` alongside the existing `orient` and `phase` skills. It needs the real Gradle task, the application id, and a rule for selecting a device or emulator (and for stopping rather than silently starting one). It should surface real Gradle and logcat output on failure instead of summarizing.
+
+The bundled `/run` skill covers the generic case in the meantime, which is why this is housekeeping rather than a blocker.
+
 ### Phase 3 — Stroke order
 
 Self-contained, visually rewarding, and good Compose practice. Renders KanjiVG's per-stroke SVG paths sequentially.
