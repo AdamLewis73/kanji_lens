@@ -22,6 +22,13 @@ Kanji Lens keeps the Japanese and explains it. Point the camera at a sign, a men
 | [Roadmap](docs/roadmap.md) | Phases, checkpoints, deferred backlog |
 | [Progress](docs/progress/) | Living state of work in flight |
 
+## Working on this project
+
+Two project slash commands, defined in `.claude/skills/`:
+
+- **`/orient`** — load current context at the start of a session: phase, progress, open questions, repo state.
+- **`/phase <n>`** — plan and begin a roadmap phase, e.g. `/phase 1`. Loads that phase's docs and verification cases, and stops at any decision checkpoint before writing code.
+
 ## Attribution
 
 Dictionary data comes from [JMdict/KANJIDIC2](https://www.edrdg.org/) (EDRDG, CC BY-SA), [KanjiVG](https://kanjivg.tagaini.net/) (CC BY-SA), [JmdictFurigana](https://github.com/Doublevil/JmdictFurigana), and [Tatoeba](https://tatoeba.org/) (CC-BY). Full attribution ships in-app as required by these licenses.
