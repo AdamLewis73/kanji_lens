@@ -37,15 +37,19 @@ Fails silently as `せい` / `しょう` if normalization is skipped.
 
 The trap: a naive "one row per word text" schema keeps whichever reading it encountered last and silently discards the others.
 
-Query 上手. Expect **three** distinct entries:
+**Confirmed against JMdict 2026-08-06.** 上手 is **two entries carrying five readings** — not one entry, and not the three this case originally assumed:
 
-| Reading | Meaning |
-|---|---|
-| じょうず | skilled, good at |
-| うわて | the upper hand, superior position |
-| かみて | stage left, upstream |
+| ent_seq | Readings | First gloss |
+|---|---|---|
+| 1353320 | じょうず, じょうて `ok`, じょうしゅ `ok` | skillful |
+| 1580400 | うわて, かみて | upper part |
 
-One row returned means identity is keyed on text alone — a D-12 violation that makes the readings unrecoverable later.
+Two things to assert:
+
+1. **Five `(text, reading)` rows survive ingest.** Fewer means identity collapsed to text alone — a D-12 violation that makes the readings unrecoverable later.
+2. **The rows come from two different entries.** A parser assuming one entry per writing will drop 1580400 entirely, losing うわて and かみて while still looking correct for じょうず.
+
+じょうて and じょうしゅ carry `&ok;` (out-dated kana). Whatever the display policy for those turns out to be, they must not be *discarded at ingest* — that decision belongs to the UI, not the parser.
 
 ### V-03 · Jukujikun alignment (D-06, D-13, D-14)
 

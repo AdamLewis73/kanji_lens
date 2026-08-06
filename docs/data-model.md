@@ -38,13 +38,23 @@ Two practical consequences, both feeding D-41:
 
 `data-model.md` originally named Tatoeba. That predates knowing the alternatives, and the choice should be settled by looking at the files:
 
-| Candidate | Why it might win |
-|---|---|
-| **Tatoeba** (raw) | Largest and most current, but sentences are not linked to dictionary words — we would have to match them ourselves |
-| **Tanaka Corpus** (`examples.utf`) | ~150,000 *edited* pairs, and words were extracted per sentence during its compilation — potentially giving word↔sentence links for free |
-| **`JMdict_e_examp.gz`** | A JMdict variant with examples attached; if they are attached per *sense*, that is finer-grained than anything we could reconstruct |
+All three were downloaded and inspected on 2026-08-05. **Raw Tatoeba is ruled out** — its export is `id \t lang \t text` with no English pairing (that lives in a separate links file) and no word index, so choosing it means rebuilding, worse, what the other two already provide.
 
-Download all three; the difference should be obvious within minutes of looking.
+The remaining two draw on the *same* underlying corpus — `JMdict_e_examp`'s examples cite Tatoeba sentence ids, and Tanaka is the curated Japanese-English subset of Tatoeba. The real difference is who does the joining:
+
+| Candidate | Structure | Trade-off |
+|---|---|---|
+| **`JMdict_e_examp.gz`** | `<example>` nested **inside `<sense>`**, carrying the Tatoeba id, the word's surface form, and a jpn/eng pair | Sense-level linkage for free, and it replaces `JMdict_e` rather than adding to it. But thin: **13.2% of entries covered**, 32,035 examples, ~1.1 per covered entry |
+| **Tanaka** (`examples.utf`) | `A:` line holds the jpn/eng pair; `B:` line indexes every word with its reading, `[sense#]`, `(#ent_seq)`, and `{surface form}` | More sentences per word, and it carries sense indices too. Costs a custom parser for the `B:` format and the join we would otherwise get free |
+
+Example of Tanaka's `B:` line, which is denser than its documentation suggests:
+
+```
+A: 彼は忙しいと言いました。	He said he was busy.#ID=303693_100004
+B: 彼(かれ)[01] は 忙しい(いそがしい) と 言う{言いました}
+```
+
+Still open — see `docs/progress/phase-01-dictionary-builder.md`.
 
 ### Notes on specific datasets
 
@@ -56,8 +66,11 @@ Expanding an entry into `(text, reading)` rows by naive cross-product therefore 
 
 Note these live on **writing and reading elements separately** (`ke_pri`, `re_pri`), not on the entry, so `word_frequency` needs a stated derivation rule rather than a guess. Proposed: take the best `nf##` band available across the writing and reading elements, falling back to `ichi1` / `news1` / `spec1`. V-04 depends on whatever rule is chosen.
 
-**KANJIDIC2 details that affect the schema.**
+**KANJIDIC2 details that affect the schema.** Confirmed by inspection 2026-08-05.
 
+- **`radical` is a number, not a character.** 生 yields `<rad_value rad_type="classical">100</rad_value>`. Displaying the radical needs a 214-entry number→glyph mapping, which KANJIDIC2 does not contain and we must source separately.
+- **`<meaning>` carries several languages.** English glosses are the elements with *no* `m_lang` attribute; French, Spanish and Portuguese sit alongside them. Ingesting indiscriminately fills the app with French.
+- **Kun readings carry positional markers** — `.` separates okurigana (`い.きる`), a trailing `-` marks a prefix (`なま-`), a leading `-` marks a suffix (`-う`). These must be stripped before matching against JmdictFurigana's surface readings.
 - **Stroke count may have several values** — the first is the accepted count, later ones are common miscounts. V-09 compares this against KanjiVG's path count and must name *which*.
 - **`nanori`** are name-only readings. They must not be mixed into kun'yomi display, or the app will teach readings that never appear in ordinary text.
 - **A frequency ranking exists** for the 2,501 most common kanji (by occurrence in Mainichi Shimbun). Useful for ordering; worth ingesting.
@@ -66,6 +79,17 @@ Note these live on **writing and reading elements separately** (`ke_pri`, `re_pr
 **KanjiVG structure.** Distributed as a **single combined XML file** (~3.6 MB gzipped), not as eleven thousand individual SVGs — earlier drafts of this document said otherwise. Each character contains one `<path>` element per stroke, in correct drawing order. Stroke-order animation is therefore rendering those paths sequentially with an animated stroke-dash offset — not a video, not a sprite sheet. Roughly 200 lines of Compose once the data is loaded.
 
 **JmdictFurigana purpose.** It records that in 先生, 先 carries せん and 生 carries せい. This is never shown to the user (D-06), but it is what allows example words to be grouped by which reading a kanji carries (D-04). See D-13.
+
+Format is `text|reading|index:kana;index:kana`, confirmed by inspection:
+
+```
+先生|せんせい|0:せん;1:せい
+明日|あした|0-1:あした        ← RANGE — jukujikun, do not split
+学校|がっこう|0:がっ;1:こう    ← gemination: 学 is がく
+花火|はなび|0:はな;1:び        ← rendaku: 火 is ひ
+```
+
+Two things fall out of this. **Range notation marks jukujikun explicitly**, so V-03 is a matter of honouring the format rather than detecting the case. And **surface kana routinely differ from dictionary readings**, which is the fuzzy-matching problem in V-17.
 
 **Kana script normalization (D-37).** The sources disagree on script, and the ingest must reconcile them deliberately:
 

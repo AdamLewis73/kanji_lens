@@ -20,12 +20,64 @@ Two findings that changed the plan:
 - **KanjiVG ships one combined XML** (~3.6 MB gzipped), not ~11,000 individual SVGs.
 - **Three of five sources have no version history** — JMdict is regenerated daily at a fixed URL, and a past version cannot be requested. Their generation date is baked into the file header, so checksums change daily even when content doesn't.
 
+## Inspection findings — 2026-08-05
+
+All sources downloaded (51.4 MB total, all seven including the three example
+candidates) and examined as raw text. Both GitHub checksums verified. JMdict and
+KANJIDIC2 both generated 2026-08-06.
+
+### JMdict — 218,329 entries
+
+| Element | Count | Why it matters |
+|---|---|---|
+| `re_restr` | 6,208 | Reading↔writing restrictions are common, not an edge case |
+| `stagk` / `stagr` | 746 / 1,183 | Sense restrictions are rare but real |
+| `ke_pri` / `re_pri` | 56,933 / 62,678 | **Only ~26% of entries carry any priority tag** |
+
+- **Multiple entries share one writing.** 上手 is *two* entries: `1353320` (じょうず, じょうて`ok`, じょうしゅ`ok` — "skillful") and `1580400` (うわて, かみて — "upper part"). Longest-match lookup must expect several entries per key.
+- **`&ok;` marks out-dated kana.** じょうて and じょうしゅ are real JMdict readings nobody uses. Needs a display policy — ingest for lookup, hide from learners.
+- **`&gikun;` flags irregular readings.** 明日's あした and あす both carry it; みょうにち does not. JMdict marks jukujikun for us — V-03 doesn't have to infer it.
+- 明日 also carries `<stagr>あす</stagr>` on its "near future" sense, so both restriction mechanisms appear in one familiar entry.
+- Part-of-speech and info values are **XML entities** (`&n;`, `&adj-na;`, `&ok;`) declared in the internal DTD subset. The parser must resolve them.
+- **Frequency covers a minority of entries.** Unranked words need a defined sort position (last), or V-04's ordering will be arbitrary for three-quarters of the dictionary.
+
+### KANJIDIC2 — two traps not previously known
+
+- **`radical` is a number, not a character.** 生 gives `<rad_value rad_type="classical">100</rad_value>`. Rendering the radical requires a 214-entry number→character mapping we must supply ourselves; KANJIDIC2 does not contain one.
+- **`<meaning>` includes other languages.** 生 carries English, French, Spanish and Portuguese glosses. English ones are the elements *without* an `m_lang` attribute. Ingesting all of them would silently fill the app with French.
+- Confirmed as expected: `<freq>` present (生 = 29), on'yomi in katakana, kun'yomi with `.` okurigana markers plus `-` for prefix/suffix position (`なま-`, `-う`), `<nanori>` in separate elements, `<jlpt>4</jlpt>` present but pre-2010 (excluded, D-42).
+
+### JmdictFurigana — format confirmed, and V-17 confirmed by data
+
+Format is `text|reading|index:kana;index:kana`.
+
+```
+先生|せんせい|0:せん;1:せい
+明日|あした|0-1:あした        ← RANGE, not per-character
+学校|がっこう|0:がっ;1:こう    ← gemination
+花火|はなび|0:はな;1:び        ← rendaku
+```
+
+- **Range notation `0-1:` marks jukujikun explicitly.** The dataset already refuses to split あした across characters, so V-03 is a matter of honouring the format rather than detecting the case.
+- **The sound-change problem is real and confirmed.** 学 carries がっ (not がく) and 火 carries び (not ひ). Matching these back to KANJIDIC2 readings needs the fuzzy normalization V-17 describes.
+
+### Example sentences — the question is now a real choice
+
+| Source | Structure | Verdict |
+|---|---|---|
+| **`JMdict_e_examp`** | `<example>` nested **inside `<sense>`**, with Tatoeba id, surface form, and jpn/eng pair | Sense-level linkage, zero matching work. **13.2% entry coverage**, 32,035 examples, ~1.1 per covered entry |
+| **Tanaka** (`examples.utf`) | `A:` line is the jpn/eng pair; `B:` line indexes each word with reading, `[sense#]`, `(#ent_seq)`, and `{surface}` | Richer — more sentences per word, and it also carries sense indices. Costs a custom parser and the join |
+| **Tatoeba** (raw) | `id \t lang \t text` only | **Ruled out.** No English pairing (separate links file) and no word index. We would rebuild, worse, what the other two already have |
+
+Both surviving candidates draw on the same underlying corpus — `JMdict_e_examp`'s examples cite Tatoeba ids, and Tanaka is the curated Japanese-English subset of Tatoeba. The difference is who does the joining.
+
+**Open decision below.**
+
 ## Next action
 
-1. Create `tools/dictbuild/` with a fetch script and a pinned manifest (D-41).
-2. Download all sources, **including all three example-sentence candidates**.
-3. Measure the compressed sizes — this settles the open git question below.
-4. Inspect real structure; write findings into this file before any parsing code.
+Settle the example-sentence source, then write the schema DDL and begin the
+KANJIDIC2 parser (smallest, self-contained, and it supplies the reading lists
+that the JmdictFurigana step depends on).
 
 ## Done
 
@@ -49,9 +101,11 @@ Two findings that changed the plan:
 
 ## Open questions
 
-- **Do the compressed source files go into git?** Leaning yes; deferred until the real sizes are known. Confirmed so far: KanjiVG 3.6 MB, JmdictFurigana 5.2 MB. If the full set lands under ~40 MB, committing them makes a fresh clone self-contained and keeps shipped builds reproducible — which matters because three sources have no version history. Raw data is gitignored **provisionally** until this is decided. Note the asymmetry: adding files to git later is trivial, removing them is not.
-- **Which example-sentence source** — raw Tatoeba, Tanaka Corpus, or `JMdict_e_examp`. Decide by inspection.
-- **Example volume.** Cap per word (3–5?) and select by sentence length and vocabulary simplicity rather than taking the first N.
+- **Which example-sentence source** — `JMdict_e_examp` or Tanaka. See the table above. `JMdict_e_examp` is far less work and sense-linked but thin (~1.1 examples per covered entry, 13.2% coverage); Tanaka is richer but needs a custom parser for its `B:` line format. Raw Tatoeba is ruled out.
+- **Do the compressed source files go into git?** Now answerable — all seven total **51.4 MB**, and the shipped set is one example source not three, so realistically **28–39 MB**. Comfortably under GitHub's 50 MB per-file warning, and refreshed only once or twice a year (D-41). Leaning yes. Note if committing, prefer JmdictFurigana's `.tar.gz` asset (5.2 MB) over the plain `.txt` (11.6 MB).
+- **Display policy for `&ok;` readings.** 上手 has じょうて and じょうしゅ marked out-dated. Ingest for lookup but hide from learners? Probably, but it needs stating — showing them as ordinary readings would teach kana nobody uses.
+- **Where does the radical number→character mapping come from?** KANJIDIC2 gives radical `100`, not 生's radical glyph. The 214 classical radicals are a small fixed table, but it has to come from somewhere with clear licensing.
+- **Example volume.** Largely moot if `JMdict_e_examp` wins — there is roughly one example per word, so "cap at 3–5" never binds. Becomes a real question again if Tanaka is chosen.
 - **Final DB size.** Needs measuring. Combined with Kuromoji's IPADIC this drives APK size — and ML Kit OCR is bundled by preference (D-46), which adds to it. If it's a problem, consider trimming rare JMdict entries or dropping low-frequency examples.
 - **FTS5 or plain indexes?** Longest-match prefix lookup (D-07) may be served fine by a plain index on word text. Measure before adding FTS complexity.
 - **Does the frequency derivation rule survive contact with the data?** `data-model.md` proposes best `nf##` across writing and reading elements, falling back to `ichi1`/`news1`/`spec1`. Confirm against real entries.
