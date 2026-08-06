@@ -71,6 +71,36 @@ Query example words for 生 grouped by reading. The セイ group should lead wit
 
 Not a data check but a review check, and cheap: grep the export format, the user DB schema, and any serialization for dictionary row IDs. They must not appear. This is verifiable before the user DB exists and gets harder to audit later.
 
+### V-17 · Reading alignment survives sound changes (D-37, D-04, D-13)
+
+**The hardest correctness problem in Phase 1.** JmdictFurigana records the kana a kanji carries *in a specific word*, but that surface kana routinely differs from the kanji's dictionary reading:
+
+| Word | Reading | What happens |
+|---|---|---|
+| 学校 | がっこう | 学 is がく, surfaces as がっ — **gemination** |
+| 花火 | はなび | 火 is ひ, surfaces as び — **rendaku** (voicing) |
+| 一生 | いっしょう | 一 is いち, surfaces as いっ |
+
+Classifying a surface reading as on'yomi or kun'yomi means matching it against KANJIDIC2's lists, which requires normalizing for voicing, gemination, and KANJIDIC2's own okurigana markers (`い.きる`, `-がわ`).
+
+Assert that 学 in 学校 is classified **on'yomi** and grouped under カク, and 火 in 花火 **kun'yomi** under ひ.
+
+Two silent failure modes, and they look different: a strict matcher **drops** the word from its reading group, making the Examples tab look thin for no visible reason; a loose matcher **misfiles** it, putting a word under the wrong reading header. Neither errors. V-01 only covers the clean case where surface and dictionary readings already agree.
+
+### V-18 · Entry expansion respects reading and sense restrictions (D-12)
+
+A JMdict entry holds several writings and several readings, with `re_restr` limiting which readings apply to which writings, and `stagk` / `stagr` limiting individual senses. A naive cross-product invents words and misattributes meanings.
+
+V-02 anchors this with 上手. **During inspection, additionally identify one entry using `re_restr` and one using `stagr`**, and assert the expansion honours both — the specific entries aren't named here because they should be found in the real file rather than trusted from this document.
+
+Failure is silent and plausible: a word that reads correctly but carries a meaning belonging to a different reading of the same characters.
+
+### V-19 · The `changes` table catches a retired key (D-39)
+
+Not testable against a single build. Build the dictionary twice from different source snapshots, or synthesize a retirement by removing one entry from a copy of the source.
+
+Expect: the removed `(text, reading)` appears in `changes` with the build id, and with a replacement key where JMdict recorded one. An empty `changes` table on a build where keys genuinely disappeared means the diff never ran — and nothing downstream will complain, because a missing warning looks exactly like no warning being needed.
+
 ---
 
 ## Phase 2 — Tokenization and lookup
@@ -107,7 +137,9 @@ If both render in the same script, one convention has been applied globally.
 
 ### V-09 · Stroke count and stroke path count agree (KanjiVG)
 
-For any kanji, the number of animated paths must equal KANJIDIC2's `stroke_count`. A mismatch means the SVG was parsed incorrectly — the animation still plays and still looks like handwriting, which is exactly why this needs an assertion rather than an eyeball.
+For any kanji, the number of animated paths must equal KANJIDIC2's stroke count. A mismatch means the SVG was parsed incorrectly — the animation still plays and still looks like handwriting, which is exactly why this needs an assertion rather than an eyeball.
+
+**Compare against the *first* `stroke_count` value only.** KANJIDIC2 may list several; the first is the accepted count and the rest are documented common miscounts. Comparing against all of them, or against the last, produces failures that look like parser bugs but aren't.
 
 Spot-check a low-stroke and a high-stroke character.
 
@@ -146,6 +178,20 @@ Expect **one** `srs_state` row and **one** due date. If the word appears twice i
 ### V-14 · Study item type discriminator populated (D-27)
 
 Every v1 row must have `type = WORD` explicitly, never null or defaulted. A nullable discriminator that "works" because v1 only writes one kind is the exact retrofit D-27 exists to prevent.
+
+### V-20 · An orphaned saved item renders and stays reviewable (D-40, D-43)
+
+Setup: save a word, then swap in a dictionary build where that `(text, reading)` no longer resolves.
+
+| Check | Expected |
+|---|---|
+| Saved list | The card is **present**, not filtered out |
+| Card content | Text, reading, `snapshot_gloss`, and an explanation |
+| Review queue | The item still appears and is answerable |
+
+The review check is the one that matters and the one most likely to be missed. A card with no back is unanswerable, so the natural implementation quietly excludes it from the queue — and unlike a missing list entry, the user has no screen on which to notice. Their review count simply drops by one.
+
+Test with `changes` **empty** as well as populated. D-40 must hold on its own; D-39 only improves the wording.
 
 ---
 

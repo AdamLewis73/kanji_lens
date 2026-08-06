@@ -42,6 +42,7 @@ Violating any of these destroys user data or forces a rewrite. Each links to ful
 - **New decision** → append to `docs/decisions.md` with the next ID.
 - **Resolved open question** → promote it into `docs/decisions.md`; don't leave the answer only in a progress file.
 - **Finished phase** → update `docs/progress/`, the table in `docs/roadmap.md`, and the Status line below.
+- **Never continue work on a branch that has already been merged.** Its pull request is closed, so further commits go unreviewed and are easily stranded — they look merged in the branch list while being absent from `master`. Check with `git branch --merged master` before starting, and branch fresh from the current base. If a branch necessarily stacks on an unmerged one, say so in the PR description.
 
 ## Communication
 

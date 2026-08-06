@@ -31,7 +31,7 @@ Scan for the relevant entry rather than reading the whole file.
 |---|---|---|
 | D-01 | v1 study items are words; kanji-only items come later | Product |
 | D-02 | Freeze-frame, not live overlay | Product |
-| D-03 | Fully offline; no runtime LLM calls | Product |
+| D-03 | ~~Fully offline; no runtime LLM calls~~ — SUPERSEDED by D-46 | Product |
 | D-04 | Teach by example (words grouped by reading), not authored prose | Product |
 | D-05 | Two detail screens: word → kanji drill-down | Product |
 | D-06 | Component chips show meanings only, never readings | Product |
@@ -66,6 +66,15 @@ Scan for the relevant entry rather than reading the whole file.
 | D-35 | Material 3 design tokens from the first UI commit | UI |
 | D-36 | Three bottom-nav destinations: Scan · Saved · Review | UI |
 | D-37 | Reading labels follow dictionary kana convention | UI / Data |
+| D-38 | Dictionary stays disposable; stable dictionary IDs rejected | Data |
+| D-39 | Dictionary ships a `changes` table for merged and removed entries | Data |
+| D-40 | An unresolvable saved item always renders; it never vanishes | UI |
+| D-41 | Sources fetched from a pinned manifest; refreshed at defined events | Data |
+| D-42 | No JLPT data in v1; a labelled estimate may follow | Data |
+| D-43 | `snapshot_gloss` on `study_item`, read only when lookup fails | Data |
+| D-44 | "Context" means kanji-in-word, not word-in-sentence | Product |
+| D-45 | Sentence-level comprehension is post-v1 | Product |
+| D-46 | No *persistent* network; one-time downloads permitted (supersedes D-03) | Product |
 
 **Bold** entries are the ones whose violation causes silent data corruption or a forced rewrite. They are also listed in `CLAUDE.md`.
 
@@ -84,10 +93,12 @@ The live camera preview shows only a lightweight "Japanese text detected" indica
 Google Translate does use a live overlay, but its use case is different: glance-and-replace, not sustained study of one image. A Translate-style approach (background freeze-frames with change detection) is deferred, not rejected — see `roadmap.md`.
 
 **D-03 — Fully offline. No runtime LLM calls.**
+**SUPERSEDED by D-46.** The no-runtime-LLM half survives unchanged; the "fully offline" half was too strict and is restated in D-46.
+
 Every core function works with no network connection. This rules out generating kanji explanations on demand from a language model. Two reasons: per-call cost the project doesn't want to carry, and the risk of confidently incorrect etymology being presented as fact in an app whose entire purpose is teaching.
 
 **D-04 — v1 teaches by example, not by authored prose.**
-The obvious way to explain why 生 means "teacher" inside 先生 is a written explanation. But no free dataset contains such explanations, authoring them for 2,000+ kanji is a content project rather than a code project, and generating them is ruled out by D-03.
+The obvious way to explain why 生 means "teacher" inside 先生 is a written explanation. But no free dataset contains such explanations, authoring them for 2,000+ kanji is a content project rather than a code project, and generating them is ruled out by D-46.
 
 Instead, the kanji screen shows **other common words containing that kanji, grouped by reading, sorted by frequency.** For 生:
 
@@ -111,6 +122,51 @@ On the word screen, 先生 displays chips for 先 (previous, ahead) and 生 (lif
 *Why:* showing a reading on each chip implies the word's reading splits cleanly per character. Often it does (先生 = せん + せい), but frequently it does not. 明日 is read あした as a whole word, with no part of that reading belonging to 明 or to 日 — this is called *jukujikun*. Displaying per-character readings would teach a false rule. Whole-word furigana (D-14) is the correct presentation.
 
 Note this is a *display* decision only. Per-character reading data is still ingested and used internally — see D-13.
+
+**D-44 — "Context" in this project means kanji-in-word, not word-in-sentence.**
+
+The thesis in `overview.md` — 生 is "life" alone, "teacher" in 先生, "production" in 生産 — locates meaning in **the word**. The app delivers that completely: the tokenizer finds the word boundary, the dictionary supplies the word's meaning, and D-04 shows every other word using that kanji grouped by reading.
+
+It does **not** attempt *word sense disambiguation* — choosing which of a word's several meanings applies in a particular photograph. 甘い on a candy wrapper means "sweet"; in 採点が甘い it means "lenient". Nothing in the pipeline can tell those apart, and nothing in the pipeline needs to.
+
+*Why this is written down:* "contextual meaning" appears throughout these docs and reads, to a fresh reader, as the larger claim. It is not. Two things make the smaller claim sufficient:
+
+- **Reading disambiguation is already solved.** Kuromoji builds a lattice over possible segmentations and picks a path using learned connection costs, and its tokens carry readings (D-07). Choosing うわて over じょうず is contextual, offline, and needs no language model. Ambiguity chips (`ux.md`) surface the candidates when it isn't confident, rather than guessing.
+- **Showing every sense is the stated goal, not a fallback.** Principle 4 in `overview.md` asks that a learner be able to answer *"do I know how to use this in all the ways it's used?"* Listing all senses serves that directly.
+
+What remains open is narrow and belongs to Phase 7: what goes on the **back of a review card** for a multi-sense word. That is a flashcard design question, not a data or scanning question, and it must not be mistaken for one.
+
+**D-45 — Sentence-level comprehension is post-v1.**
+
+Two mechanisms were considered for helping a user understand a whole sign rather than one word, and both are deferred:
+
+- **An interlinear gloss strip** — the recognized line with each word's primary meaning beneath it. Rejected for v1: particles gloss badly (*[subject]*, *[adj]*) and confuse beginners more than they help; it duplicates the peek card with strictly less information; and it short-circuits the tap interaction, which is where the learning actually happens.
+- **On-device translation** — ML Kit's Translation API, ~30 MB per language model. Genuinely useful, and the honest way to answer "what does this sign say."
+
+*Why deferred rather than rejected:* both are **purely additive** — a new surface calling existing data or one API, with no change to the data model. Deferring costs almost nothing, which is exactly the profile of a feature that should wait.
+
+*Why this decision exists at all:* the pull toward becoming a translation app is constant and it comes from good intentions. `overview.md` rejects translation as the *product shape*, but "not a translation app" and "no sentence-level help whatsoever" are different positions, and only the first was previously written down. This records the second.
+
+Note that `scan.raw_ocr_text` already captures the full recognized line (D-22), so nothing is lost by not rendering it yet.
+
+**D-46 — No *persistent* network dependency. One-time downloads are permitted. No runtime LLM calls.**
+
+*Supersedes D-03*, whose "fully offline" phrasing was stricter than intended.
+
+The requirement is that **after setup, the app works indefinitely with no network.** No per-lookup web calls, no fetching card details on demand, no degraded experience on a train with no signal.
+
+One-time downloads are acceptable, subject to two constraints:
+
+1. **Where a bundled option exists, prefer it.** Eliminating the download is better than handling it well.
+2. **No egregious sizes**, and any download is visible and cancellable rather than silent.
+
+The no-runtime-LLM half of D-03 is unchanged and still holds, for the reasons given there.
+
+*Consequences already known:*
+
+- **ML Kit OCR — bundled remains the choice**, but now as a product preference rather than as a consequence of an offline rule. `architecture.md` previously derived it from D-03; a future session must not read the superseded D-03 and conclude the opposite.
+- **ML Kit Translation cannot be bundled.** Its API is built around runtime model download; there is no bundled variant. If D-45's translation feature is ever built, the download is structural, not negotiable.
+- **Future account sync (D-19)** obviously requires network, and was never in tension with this — sync is not a core function.
 
 ---
 
@@ -180,6 +236,64 @@ So: ingested, indexed, queried constantly, shown to the user never.
 
 **D-14 — Furigana display is whole-word ruby only.**
 Reading kana render above the entire word as a unit — せんせい positioned over 先生, not せん over 先 and せい over 生. Correctly handles jukujikun (D-06) and keeps rendering simple.
+
+**D-38 — The dictionary is rebuilt from scratch every time. Stable dictionary-owned IDs were considered and rejected.**
+
+Each build regenerates `kanjilens.db` from the source datasets, so **every row number changes**. That is fine, and D-11 is what makes it fine.
+
+*The rejected alternative, recorded so it isn't re-proposed:* assign our own permanent ID to each word on first build, then maintain the database incrementally forever, updating rows in place as JMdict changes. It is a natural idea and it fails for three reasons:
+
+1. **It makes the dictionary stateful.** Every future schema change becomes a migration against accumulated state, rather than an edit to the build script. That is precisely the machinery D-09 exists to avoid needing.
+2. **It destroys reproducibility.** Today, sources + script = database. Under the alternative, sources + script + *every prior build* = database. Lose the file and it cannot be reconstructed, because the ID assignments were arbitrary and order-dependent. The dictionary becomes a large irreplaceable binary requiring backup and version control.
+3. **It buys nothing.** The natural key (text, reading) already identifies a word across rebuilds, and does so better — it is readable, reproducible from nothing, identical on every device, and joins directly against JmdictFurigana.
+
+Critically, it also does **not** solve the problem it appears to solve. A stable ID pointing at a merged-away entry is just as stale as a failed natural-key lookup; the merge still has to be handled explicitly. That is D-39, and it works with natural keys.
+
+*This decision is scoped to a dictionary derived entirely from public sources.* If the dictionary ever contains authored content — curated kanji explanations, hand-tuned rankings, original example sentences — it becomes irreplaceable and this must be revisited.
+
+**D-39 — The dictionary ships a `changes` table recording merged and removed entries.**
+
+JMdict entries are occasionally merged, split, or removed, which D-11 already noted without saying what to do about it. This is what to do about it.
+
+Each build compares its full set of `(text, reading)` keys against the previous **shipped** build's key set. Keys that disappeared are written into a `changes` table inside the new dictionary asset: the old key, its replacement where there is one, and the build in which it happened.
+
+At read time, a saved item whose lookup fails is checked against `changes`, letting the app say *"merged into 上手 (じょうず)"* with a link, rather than *"not found"*. See D-40 for the rendering rule this feeds.
+
+The table is **derived**, not accumulated — it is recomputed on each build from two key sets, so D-38 is unaffected. The only artifact retained between builds is the previous key list, roughly 200,000 lines of text, about a megabyte compressed.
+
+**D-41 — Source datasets are fetched from a pinned manifest and refreshed at defined events.**
+
+A `fetch` script downloads all sources from a manifest recording, per dataset: URL, download date, SHA-256 checksum, and **the generation date from inside the file's own header**. The header date is the real version identifier; the download date only records when we happened to ask.
+
+*Why the header date matters:* JMdict, KANJIDIC2, and the Tanaka Corpus are published at unchanging URLs and regenerated continuously — JMdict daily. **There is no way to request a past version.** Worse, the generation date is written into each file, so the checksum changes daily even when no content did; a checksum can prove two files differ but cannot tell you whether anything meaningful changed.
+
+*Refresh at events, not intervals:* at the start of Phase 1, before the first release, and once per release thereafter. Never mid-phase. "Every so often when I think of it" degrades either to never, or to a random moment in the middle of debugging something else — which is exactly when a new variable is least welcome. EDRDG's own guidance to downstream users is every few months.
+
+The cost of refreshing rises sharply once real users exist: before release nothing can break, afterwards a refresh can orphan saved words (D-39, D-40). Refresh freely now; refresh deliberately later.
+
+**D-42 — v1 ships no JLPT data. A clearly-labelled estimate may be added later.**
+
+KANJIDIC2 carries a `jlpt` field, but it encodes the **pre-2010 four-level test**, which no longer exists. Displaying it would be actively misleading.
+
+There is no official replacement. The JLPT administrators deliberately stopped publishing kanji and vocabulary lists with the 2010 revision, to discourage rote list-learning. Every N5–N1 list in circulation is a community reconstruction assembled from published past papers — broadly consistent with each other, but estimates, differing at the margins, and usually of unstated licensing.
+
+So v1 ships nothing rather than something wrong. **Not even a placeholder column**, because the dictionary is disposable (D-09) — adding a column later costs a script edit and a rebuild, with no migration. There is nothing to reserve.
+
+*When it is added:* settle the encoding first — `"N5"` versus an integer, and if an integer, whether 5 is the easiest or the hardest. Name the column `jlpt_estimate`, never `jlpt`, so no future reader mistakes a reconstruction for an official figure.
+
+**D-43 — `study_item` carries a `snapshot_gloss`, read only when live lookup fails.**
+
+The default remains D-11's: store only the natural key and re-resolve everything against the dictionary at read time, so improved glosses reach saved words for free.
+
+But that leaves nothing to show when resolution fails. An orphaned card could render only its text and reading — and worse, an SRS card needs a **back**, which comes from the dictionary. Without a fallback, orphaned items become unreviewable and drop silently out of the review queue, which is the vanishing-item problem (D-40) reappearing somewhere the user cannot even see it.
+
+So: at save time, store **the gloss line exactly as the card displayed it** — capped at roughly 80 characters. Not the first sense alone; the line the user was looking at when they chose to save, which by construction is closest to what they meant.
+
+**The rule that keeps this honest: the snapshot is read only when live resolution fails.** When the dictionary resolves the word, live data wins, always. The snapshot therefore cannot drift into showing stale meanings — it is a parachute, not a cache.
+
+Secondary benefit: it makes export files self-describing (D-20). Importing onto a device with a different dictionary build produces usable cards rather than a list of unexplained words.
+
+*Why this cannot drift:* unlike a dictionary column, this lives in the **user** database. Adding it later is a real migration, and every word saved before that release would have a permanently empty snapshot — the gloss cannot be recovered for a word the dictionary has since removed. It must be present at the first user-data write; see the checkpoint table in `roadmap.md`.
 
 ---
 
@@ -321,3 +435,15 @@ On the kanji screen's Overview and Examples tabs, reading group headers render a
 Since JmdictFurigana is what powers the grouping (D-13), its hiragana readings must be converted to katakana when the reading is an on'yomi. Determining which is which means cross-referencing KANJIDIC2's reading lists for that kanji. Get this wrong and every on'yomi group header renders in the wrong script.
 
 *Scope note:* this governs **reading labels only.** Furigana displayed over words stays hiragana in all cases (D-14) — that is a separate convention and the two must not be conflated.
+
+**D-40 — A saved item that cannot be resolved is always rendered. It never disappears.**
+
+If the dictionary cannot resolve a saved item's `(text, reading)`, the app shows the card anyway — with the text, the reading, the review history, and an explanation — rather than omitting it from the list.
+
+*Why this is a decision and not an implementation detail:* the alternative is not a visible bug. A list that quietly contains one fewer item than the user remembers saving looks like nothing at all. The user knows they saved something, cannot find it, and has no way to tell whether the app lost it or they misremembered. That is a trust failure, and trust failures in a study app end with the app being deleted.
+
+The rule holds **independently of D-39.** Even with an empty or missing `changes` table, an unresolvable item renders as *"this entry is no longer in the dictionary"* rather than as absence. D-39 upgrades the message from that to *"merged into 上手 (じょうず)"*; it is not what prevents the disappearance.
+
+Worth stating plainly: a dictionary update **cannot** delete a user's saved word. The two databases are separate (D-09) and the dictionary has no write access to user data. Vanishing is only ever something the app chooses to display — which is why it is a rendering rule.
+
+Paired with D-43, which ensures such a card still has a meaning to show.

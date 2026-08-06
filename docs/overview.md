@@ -17,6 +17,14 @@ Point the camera at real-world Japanese — a sign, a menu, a package — freeze
 
 The learning claim: **contextual exposure to real text beats memorizing isolated characters.**
 
+### What "context" means here (D-44)
+
+Precisely: **the word is the context for the kanji.** 生 means "teacher" *inside 先生*. The app delivers that completely — the tokenizer finds the word boundary, the dictionary supplies the word's meaning, and the kanji screen shows every other word using that kanji grouped by reading.
+
+It does **not** attempt to work out which of a word's several meanings applies in a particular photograph. 甘い on a sweet wrapper means "sweet"; in 採点が甘い it means "lenient". The app shows every sense and lets the learner choose — which principle 4 below argues is the better teaching anyway.
+
+Worth stating up front because "contextual meaning" reads, on a first pass, as the larger claim. Sentence-level comprehension is deliberately post-v1 (D-45).
+
 ## Worked example: what actually happens
 
 A user photographs a sign reading `先生と生産`. This walks the whole system end to end.

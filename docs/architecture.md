@@ -21,7 +21,9 @@ Read `overview.md` first if you're new to this project — it explains what the 
 - `com.google.android.gms:play-services-mlkit-text-recognition-japanese`
 - `com.atilika.kuromoji:kuromoji-ipadic`
 
-ML Kit offers *bundled* and *unbundled* variants. Bundled ships the model inside the APK (larger download, works immediately); unbundled downloads it via Google Play Services on first use (smaller APK, but the first scan can fail offline). Given D-03's offline requirement, **bundled is the likely correct choice** — confirm the size cost when Phase 4 starts.
+ML Kit offers *bundled* and *unbundled* variants. Bundled ships the model inside the APK (larger download, works immediately); unbundled downloads it via Google Play Services on first use (smaller APK, but the first scan can fail offline). **Bundled is the choice** — confirm the size cost when Phase 4 starts.
+
+*Note the reasoning changed.* This previously followed from D-03's "fully offline" rule. D-46 supersedes that: one-time downloads are now permitted, so unbundled is no longer forbidden. Bundled remains correct as a **product preference** — where a bundled option exists, eliminating the download beats handling it well. Don't read superseded D-03 and conclude unbundled is banned; it isn't, it's just not preferred.
 
 ### SDK levels
 
