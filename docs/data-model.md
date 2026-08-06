@@ -8,20 +8,62 @@ All free. All require attribution — see the bottom of this file.
 
 | Dataset | Provides | Format | License |
 |---|---|---|---|
-| **JMdict** | Japanese-English word entries: writings, readings, senses, part of speech, frequency tags | Large XML | CC BY-SA (EDRDG) |
-| **KANJIDIC2** | Per-kanji data: meanings, on/kun readings, stroke count, JLPT level, school grade, official radical | XML | CC BY-SA (EDRDG) |
-| **KanjiVG** | Stroke order paths, one SVG per kanji | SVG files | CC BY-SA |
-| **JmdictFurigana** | Per-character reading alignment — **internal index only**, D-13 | Text, one entry per line | Derived, CC BY-SA |
-| **Tatoeba** | Example sentences with translations | TSV | CC-BY |
+| **JMdict** | Japanese-English word entries: writings, readings, senses, part of speech, frequency tags | Large XML, gzipped | CC BY-SA (EDRDG) |
+| **KANJIDIC2** | Per-kanji data: meanings, on/kun readings, stroke count, school grade, official radical, frequency rank | XML, gzipped — 13,108 kanji | CC BY-SA (EDRDG) |
+| **KanjiVG** | Stroke order paths | **One combined XML**, gzipped | CC BY-SA |
+| **JmdictFurigana** | Per-character reading alignment — **internal index only**, D-13 | Text or JSON, one entry per line | Derived, CC BY-SA |
+| **Example sentences** | Japanese sentences with English translations | Three candidate sources — see below | CC-BY |
 | **KRADFILE** | Kanji → its visual components | Text | CC BY-SA (EDRDG) — **deferred**, see `roadmap.md` |
 
-Formats above are from documentation, not yet verified by inspection — Phase 1's first task is deliberately to download and examine the real files before writing parsing code.
+### Where they come from
+
+Confirmed August 2026. Acquisition and refresh policy is D-41.
+
+| Dataset | Source | Versioning |
+|---|---|---|
+| JMdict | `ftp.edrdg.org/pub/Nihongo/JMdict_e.gz` | **None** — regenerated daily at a fixed URL |
+| KANJIDIC2 | `edrdg.org/kanjidic/kanjidic2.xml.gz` | **None** — fixed URL |
+| KanjiVG | GitHub `KanjiVG/kanjivg` releases | Tagged, immutable, SHA-256 published (3.6 MB gzipped) |
+| JmdictFurigana | GitHub `Doublevil/JmdictFurigana` releases | Tagged, immutable, SHA-256 published (5.2 MB gzipped) |
+| Tanaka Corpus | EDRDG — ~150,000 edited sentence pairs | Loose |
+
+Two practical consequences, both feeding D-41:
+
+- **Three of five sources have no version history.** A past version of JMdict cannot be requested. Reproducing an old build requires having kept the file.
+- **The generation date is written into each EDRDG file's header**, so the checksum changes daily whether or not any content did. Pin by header date; a checksum detects difference, not meaningful change.
+
+**Internal file structure is still unverified.** URLs, formats, licensing and versioning are confirmed; the actual element shapes are not. Phase 1's first task remains downloading and examining the real files before writing parsing code.
+
+### Example sentences — three candidates, decide after inspection
+
+`data-model.md` originally named Tatoeba. That predates knowing the alternatives, and the choice should be settled by looking at the files:
+
+| Candidate | Why it might win |
+|---|---|
+| **Tatoeba** (raw) | Largest and most current, but sentences are not linked to dictionary words — we would have to match them ourselves |
+| **Tanaka Corpus** (`examples.utf`) | ~150,000 *edited* pairs, and words were extracted per sentence during its compilation — potentially giving word↔sentence links for free |
+| **`JMdict_e_examp.gz`** | A JMdict variant with examples attached; if they are attached per *sense*, that is finer-grained than anything we could reconstruct |
+
+Download all three; the difference should be obvious within minutes of looking.
 
 ### Notes on specific datasets
 
+**A JMdict entry is not a word.** One `<entry>` holds several kanji writings *and* several readings, plus explicit restrictions between them — `re_restr` limits a reading to particular writings, and `stagk` / `stagr` limit an individual *sense* to particular writings or readings.
+
+Expanding an entry into `(text, reading)` rows by naive cross-product therefore **invents words that do not exist and attaches meanings to the wrong reading.** Senses must hang off the expanded row, not off the entry. V-02 (上手) is the case that catches this.
+
 **JMdict frequency tags.** Entries carry priority markers (`nf01`–`nf48`, `news1`, `ichi1`, `spec1`) indicating how common a word is. These are **not optional** — they're what makes example lists useful. An unranked list of words containing 生 surfaces obscure vocabulary first and makes the app feel broken.
 
-**KanjiVG structure.** Each character's SVG contains one `<path>` element per stroke, in correct drawing order. Stroke-order animation is therefore rendering those paths sequentially with an animated stroke-dash offset — not a video, not a sprite sheet. Roughly 200 lines of Compose once the data is loaded.
+Note these live on **writing and reading elements separately** (`ke_pri`, `re_pri`), not on the entry, so `word_frequency` needs a stated derivation rule rather than a guess. Proposed: take the best `nf##` band available across the writing and reading elements, falling back to `ichi1` / `news1` / `spec1`. V-04 depends on whatever rule is chosen.
+
+**KANJIDIC2 details that affect the schema.**
+
+- **Stroke count may have several values** — the first is the accepted count, later ones are common miscounts. V-09 compares this against KanjiVG's path count and must name *which*.
+- **`nanori`** are name-only readings. They must not be mixed into kun'yomi display, or the app will teach readings that never appear in ordinary text.
+- **A frequency ranking exists** for the 2,501 most common kanji (by occurrence in Mainichi Shimbun). Useful for ordering; worth ingesting.
+- **The `jlpt` field is the pre-2010 test** and is deliberately not ingested — see D-42.
+
+**KanjiVG structure.** Distributed as a **single combined XML file** (~3.6 MB gzipped), not as eleven thousand individual SVGs — earlier drafts of this document said otherwise. Each character contains one `<path>` element per stroke, in correct drawing order. Stroke-order animation is therefore rendering those paths sequentially with an animated stroke-dash offset — not a video, not a sprite sheet. Roughly 200 lines of Compose once the data is loaded.
 
 **JmdictFurigana purpose.** It records that in 先生, 先 carries せん and 生 carries せい. This is never shown to the user (D-06), but it is what allows example words to be grouped by which reading a kanji carries (D-04). See D-13.
 
@@ -47,11 +89,12 @@ kanji
   char              PK, the character itself: 生
   meanings          English glosses
   on_readings       katakana: セイ, ショウ
-  kun_readings      hiragana: い(きる), う(まれる), なま
-  stroke_count
-  jlpt              proficiency-test level, if any
+  kun_readings      hiragana: い(きる), う(まれる), なま — excludes nanori
+  stroke_count      the FIRST KANJIDIC2 value; later ones are miscounts
+  freq_rank         Mainichi Shimbun rank, top 2,501 only; null otherwise
   grade             school year taught, if any
   radical           the official indexing radical
+                    (no jlpt column — D-42)
 
 word
   id                internal only — NEVER referenced from user data (D-11)
@@ -75,9 +118,21 @@ example
 
 strokes
   kanji_char, svg_paths
+
+changes             ← D-39; merged and removed entries
+  old_text, old_reading      the key that no longer resolves
+  new_text, new_reading      where it went, if anywhere
+  build_id                   which build it disappeared in
+
+meta                ← one row; lets the app detect an asset upgrade
+  build_id                   this dictionary's own version
+  built_at
+  source_versions            header date + checksum per dataset (D-41)
 ```
 
 `kanji_in_word` is the table that answers *"show me every common word where 生 is read セイ."* It is queried constantly and rendered never.
+
+`changes` is **derived** — recomputed each build by comparing this build's `(text, reading)` key set against the previous shipped build's. It accumulates nothing, so the dictionary stays disposable (D-38). The only artifact carried between builds is the previous key list.
 
 ### User DB — writable, irreplaceable
 
@@ -90,6 +145,8 @@ study_item
   text          先生
   reading       せんせい  — part of the identity  (D-12)
   ent_seq       hint only, never the identity    (D-11)
+  snapshot_gloss  the gloss line as displayed at save time, ~80 chars.
+                  READ ONLY WHEN LIVE LOOKUP FAILS               (D-43)
   created_at, updated_at, deleted_at             (D-16)
   UNIQUE(text, reading, type)
 
@@ -138,6 +195,20 @@ A saved item pointing at `dictionary_word_id = 48123` breaks the moment the dict
 
 **2. Identity is (text, reading), never text alone (D-12).**
 上手 is じょうず (skilled), うわて (upper hand), and かみて (stage left) — three distinct vocabulary items a learner must be able to study separately.
+
+### When the key stops resolving
+
+The natural key is far more stable than a row number, but it is not immutable — a corrected reading or a merged entry can retire one. Three mechanisms handle that, and they are deliberately independent:
+
+| | |
+|---|---|
+| **D-40** | The card renders regardless. An unresolvable item never silently disappears from a list. |
+| **D-43** | `snapshot_gloss` gives that card a meaning to show, and keeps it reviewable. |
+| **D-39** | The `changes` table upgrades *"no longer in the dictionary"* to *"merged into 上手 (じょうず)"*. |
+
+Only the third depends on the dictionary. The first two hold even if `changes` is empty or missing.
+
+Note the risk profile shifts over time: before release nothing can break, because nobody has saved anything. Afterwards a refresh can orphan real saved words — which is why D-41 refreshes at defined events rather than casually.
 
 ## Migrations
 

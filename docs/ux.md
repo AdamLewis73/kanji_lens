@@ -91,6 +91,17 @@ This app gets opened while standing in a shop, sitting at a restaurant table, or
 
 **Empty states.** "No saved words yet" and "Nothing due for review" are the screens a new user sees most often, which makes them the best onboarding surface available. Don't leave them blank.
 
+**Unresolvable saved items (D-40).** A different problem from an empty state, and easier to get wrong. If a dictionary update retires a word's `(text, reading)`, the saved card **still renders** — text, reading, review history, and an explanation. It is never filtered out of the list.
+
+> **上手** ・ うわて
+> ⚠️ Merged in the June dictionary update.
+> Now listed under **上手 (じょうず)** → [View]
+> *Reviewed 11 times · next due in 4 days*
+
+The meaning shown comes from `snapshot_gloss` (D-43); the merge target from the dictionary's `changes` table (D-39). With no `changes` entry, the same card reads "no longer in the dictionary" — the card appears either way.
+
+Silently omitting the card is the failure this prevents, and it is invisible: the list is simply one shorter than the user remembers. They cannot tell whether the app lost their word or they misremembered saving it.
+
 **Attribution screen.** A license obligation under CC BY-SA — see `data-model.md`. Not a nicety.
 
 **Storage screen (D-25).** Usage breakdown, a clear action, and a "save scan images" toggle. Users who discover an app consuming 500 MB uninstall it.
