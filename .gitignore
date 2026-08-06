@@ -1,0 +1,21 @@
+# Downloaded dictionary sources.
+#
+# PROVISIONAL. Whether the compressed sources get committed is still an open
+# question — see docs/progress/phase-01-dictionary-builder.md. Leaning toward
+# committing them, because three of the five have no version history and a past
+# version cannot be re-fetched. Ignored until real sizes are known, since adding
+# files to git later is trivial and removing them is not.
+tools/dictbuild/data/raw/
+*.part
+
+# Build output
+tools/dictbuild/data/build/
+*.db
+*.db-journal
+*.db-wal
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
