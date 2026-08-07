@@ -46,22 +46,29 @@ Both routes reach **the same** kanji screen. One kanji, one screen.
 ```
 上手
   じょうず  skillful; proficient; good (at); adept
-            彼は文章を書くのが上手であるとわかった。
-            He proved to be a good writer.
+            flattery
   うわて    upper part
   かみて    stage left
 Composed of:  上 above, up    手 hand
 ```
 
-Reading → meanings → examples, repeated per reading. **Component chips come last**, below every reading, showing meanings only (D-06). Examples belong beside the meanings they illustrate; the chips answer a follow-up question.
+Reading → meanings, repeated per reading. **Component chips come last**, below every reading, showing meanings only (D-06).
 
-Formatting this so meanings and examples stay visually distinct at a glance is still open — a Phase 2 design task, not a data one.
+**Example sentences are not rendered in v1** (D-51). They are ingested and sit in the dictionary, but only 41.4% of common senses have one, and that number is impossible to judge without seeing real screens. The slot in the layout — beneath each sense, above the next reading — is reserved:
+
+```
+  じょうず  skillful; proficient; good (at); adept
+            ← examples would go here, per sense
+            flattery
+```
+
+Two things to settle in Phase 2: whether to show them at all, and how to keep meanings and examples visually distinct at a glance. Both are design questions, not data ones — the data is already there.
 
 ### Kanji screen — three tabs
 
 | Tab | Content |
 |---|---|
-| **Overview** | Meanings, on'yomi / kun'yomi, and — when the kanji is also a standalone word — an **As a word** section with its senses and example sentences (D-49) |
+| **Overview** | Meanings, on'yomi / kun'yomi, and — when the kanji is also a standalone word — an **As a word** section listing its senses (D-49). Example sentences there follow the same v1 rule as the word screen: ingested, not rendered (D-51) |
 | **Examples** | Other **words** containing this kanji, grouped by reading, frequency-sorted (D-04) |
 | **Stroke Order** | KanjiVG animation — paths drawn sequentially — plus the stroke count |
 

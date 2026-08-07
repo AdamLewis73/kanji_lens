@@ -79,6 +79,7 @@ Scan for the relevant entry rather than reading the whole file.
 | D-48 | One word screen per written form; readings are sections within it | UI |
 | D-49 | A single-character token opens the kanji screen directly | UI |
 | D-50 | Kanji screen carries only learner-usable reference; grade and radical dropped | UI |
+| D-51 | Example sentences are ingested in v1 but not rendered; decide in Phase 2 | Data |
 
 **Bold** entries are the ones whose violation causes silent data corruption or a forced rewrite. They are also listed in `CLAUDE.md`.
 
@@ -302,6 +303,42 @@ So: at save time, store **the gloss line exactly as the card displayed it** — 
 Secondary benefit: it makes export files self-describing (D-20). Importing onto a device with a different dictionary build produces usable cards rather than a list of unexplained words.
 
 *Why this cannot drift:* unlike a dictionary column, this lives in the **user** database. Adding it later is a real migration, and every word saved before that release would have a permanently empty snapshot — the gloss cannot be recovered for a word the dictionary has since removed. It must be present at the first user-data write; see the checkpoint table in `roadmap.md`.
+
+**D-51 — Example sentences are ingested in v1 but not rendered. Whether to show them is a Phase 2 decision.**
+
+The build parses **`JMdict_e_examp`** (which is `JMdict_e` *plus* examples, so it replaces rather than supplements it), populates the `example` table, and ships it. The UI renders nothing from it in v1.
+
+*Why not just render them:* coverage is thin and the number is hard to judge in the abstract.
+
+| Measured against JMdict 2026-08-06 | |
+|---|---|
+| Common senses with a sense-attached example | **41.4%** (19,357 of 46,713) |
+| Common entries with at least one example | 55.9% |
+| All senses, including rare vocabulary | 12.5% |
+
+"Four in ten senses" is not something anyone can evaluate on paper. Looking at 先生's actual screen and deciding whether it feels complete or embarrassing is — and that requires Phase 2.
+
+*Why ingest anyway rather than defer entirely:* the `<example>` elements sit **inside the `<sense>` elements the parser already walks**, so extracting them is a few extra lines rather than a separate pass. Ingesting now makes the Phase 2 question purely a UI one, with no return trip to the Python builder mid-Android-work. If the answer turns out to be no, the table is dropped on the next rebuild and nothing is lost — the dictionary is disposable (D-38).
+
+### Alternatives measured and rejected
+
+Recorded so this is not re-litigated. All figures are for **common** entries — those carrying a JMdict frequency tag, i.e. the words anyone would actually photograph.
+
+| Option | Result |
+|---|---|
+| **Tanaka Corpus** (`examples.utf`) | Better *word-level* coverage (57.3% vs 55.9%) but only **7,537** sense-tagged (word, sense) pairs against `JMdict_e_examp`'s 31,642. Most of its `B:` line tokens carry no sense number at all |
+| **Raw Tatoeba** | No English pairing in the export, no word index. Rebuilding, worse, what the other two already provide |
+| **Both combined** | **+1.7 percentage points** (41.4% → 43.2%). They are the same corpus — `JMdict_e_examp`'s examples cite Tatoeba ids, and Tanaka is Tatoeba's curated ja-en subset. `JMdict_e_examp`'s covered words are a strict *subset* of Tanaka's |
+| **JParaCrawl** (21M pairs) | Released for research purposes — a licensing problem for a shipped app |
+| **JESC** (3.2M pairs) | Freely licensed but subtitle dialogue; uneven register for learners |
+| **Japanese WordNet** | Genuinely sense-annotated, but against WordNet's sense inventory, not JMdict's. Mapping the two is a research problem |
+| **Build-time LLM sense tagging** | Technically possible — D-46 binds the app, not the desktop build. Rejected because D-46's *reasoning* is about confidently-wrong content presented as fact in a teaching app, and wrong sense assignments would be baked into the shipped dictionary, unverifiable at scale and invisible to the user |
+
+**The ceiling is roughly 43%, and it is a corpus limitation, not a sourcing mistake.** Around 57% of common senses have no attested example sentence anywhere in this data. More sentences do not help: the bottleneck is *sense annotation*, not sentence supply, and attaching an unlabelled sentence to a specific sense is word sense disambiguation (D-44).
+
+*Not affected by any of this:* the kanji Examples tab, which shows example **words** grouped by reading (D-04) and is built from JMdict plus JmdictFurigana. Its coverage is essentially complete. The product thesis does not rest on example sentences.
+
+*Phase 2 revisit:* decide whether to render, and if so whether sense-attached only or word-level too. See the checkpoint table in `roadmap.md`.
 
 ---
 

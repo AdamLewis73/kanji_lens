@@ -35,11 +35,17 @@ Three things are known to be harder than they look:
 - **Entry expansion (V-18).** A JMdict entry is not a word; `re_restr` and `stagk`/`stagr` must be honoured or the ingest invents words and misattributes meanings.
 - **Frequency derivation (V-04).** Priority tags live on writing and reading elements separately, so `word_frequency` needs a stated rule.
 
-**Open at the start of the phase:** which of three example-sentence sources to use — raw Tatoeba, the Tanaka Corpus, or `JMdict_e_examp`. Download all three and decide by looking (see `data-model.md`).
+**Settled:** the example-sentence source is `JMdict_e_examp`, which replaces plain `JMdict_e` rather than adding to it (D-51). Sentences are ingested but not rendered in v1 — see the Phase 2 note below.
 
 ### Phase 2 — Android app with a text box
 
 **No camera at all.** Paste `先生と生産` into a text field, tokenize with Kuromoji, look up in Room, and render the word screen and kanji screen. This is where the app's actual value gets proven, and it's fully testable without any of the camera complexity.
+
+**Decide here: do example sentences get rendered? (D-51)** They are already in the dictionary — ingested in Phase 1, shown nowhere. Coverage is 41.4% of common senses, with a ceiling around 43% because the corpus doesn't attest the rest.
+
+That number is deliberately not being judged on paper. Build the word screen without them, look at 先生 and 上手 and 生 on a real device, then turn them on and look again. If they read as a useful bonus, keep them; if the gaps read as broken, drop the table on the next rebuild and lose nothing.
+
+Also still open if they stay: sense-attached only, or word-level examples too where no sense-attached one exists.
 
 **Housekeeping for this phase — create a `/launch` skill.** There is no build-and-run command for this project yet; one was deliberately deferred because there was nothing to launch. Once the app module exists, add `.claude/skills/launch/SKILL.md` alongside the existing `orient` and `phase` skills. It needs the real Gradle task, the application id, and a rule for selecting a device or emulator (and for stopping rather than silently starting one). It should surface real Gradle and logcat output on failure instead of summarizing.
 

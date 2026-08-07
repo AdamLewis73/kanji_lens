@@ -34,6 +34,11 @@ MANIFEST = HERE / "sources.json"
 RAW_DIR = HERE / "data" / "raw"
 LOCK = HERE / "sources.lock.json"
 
+# Windows consoles default to cp1252 and mangle anything outside it. Every
+# script in this project prints either Japanese or typographic punctuation.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 # Some servers reject urllib's default agent.
 USER_AGENT = "kanjilens-dictbuild/0.1 (+https://github.com/AdamLewis73/kanji_lens)"
 TIMEOUT = 120

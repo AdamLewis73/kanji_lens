@@ -71,19 +71,25 @@ Format is `text|reading|index:kana;index:kana`.
 
 Both surviving candidates draw on the same underlying corpus — `JMdict_e_examp`'s examples cite Tatoeba ids, and Tanaka is the curated Japanese-English subset of Tatoeba. The difference is who does the joining.
 
-**Open decision below.**
+**Resolved by D-51** — `JMdict_e_examp`, ingested but not rendered in v1. Tanaka and the Tatoeba export were dropped from the manifest. Measurements that settled it:
+
+| | Common senses attached | Common entries with any example |
+|---|---:|---:|
+| `JMdict_e_examp` | **41.4%** | 55.9% |
+| Tanaka | 7,537 pairs only | 57.3% |
+| Both combined | 43.2% | 57.3% |
+
+Combining adds **1.7 points**, because they are the same corpus — `JMdict_e_examp`'s covered words are a strict subset of Tanaka's. The ~43% ceiling is a corpus limitation: roughly 57% of common senses have no attested sentence anywhere. More sentences don't help, because the bottleneck is *sense annotation*, not supply.
 
 ## Next action
 
-Settle the example-sentence source, then write the schema DDL and begin the
-KANJIDIC2 parser (smallest, self-contained, and it supplies the reading lists
-that the JmdictFurigana step depends on).
+Write the schema DDL, then begin the **KANJIDIC2 parser** — smallest, self-contained, and it supplies the reading lists the JmdictFurigana step depends on.
 
 ## Done
 
 - [ ] `tools/dictbuild/` skeleton and fetch script with pinned manifest (D-41)
-- [ ] Source datasets downloaded and inspected; findings recorded here
-- [ ] Example-sentence source chosen from the three candidates
+- [x] Source datasets downloaded and inspected; findings recorded here
+- [x] Example-sentence source chosen — `JMdict_e_examp` (D-51)
 - [ ] Schema finalized
 - [ ] JMdict parser — entry expansion honouring `re_restr` / `stagk` / `stagr` (V-18)
 - [ ] Frequency derivation rule stated and applied (V-04)
@@ -91,7 +97,7 @@ that the JmdictFurigana step depends on).
 - [ ] JmdictFurigana ingest → `kanji_in_word`
 - [ ] Kana script normalization tolerant of rendaku and gemination (D-37, V-17)
 - [ ] KanjiVG ingest → stroke paths
-- [ ] Example sentences ingested, capped and ranked
+- [ ] Example sentences ingested from `<sense>`, attached per sense — **not rendered** (D-51)
 - [ ] `meta` table with build id and per-source header dates (D-41)
 - [ ] `changes` table + key-set diff against previous build (D-39, V-19)
 - [ ] Indexes for lookup patterns (exact word, prefix/longest-match, kanji → words)
@@ -101,13 +107,10 @@ that the JmdictFurigana step depends on).
 
 ## Open questions
 
-- **Which example-sentence source — the blocking decision for the schema.** `JMdict_e_examp` or Tanaka; see the table above. `JMdict_e_examp` is less work and sense-linked but thin (13.2% coverage, ~1.1 examples per covered entry); Tanaka carries hundreds per common word but needs a parser for its `B:` line format. Raw Tatoeba is ruled out.
-
-  D-48 and D-49 both increased the amount of screen that wants sentences: the word screen now shows examples under *every* reading, and single-character kanji screens show them under every standalone-word sense. That strengthens the case for Tanaka, since `JMdict_e_examp` supplies roughly one sentence per word total.
-- **Do the compressed source files go into git?** Now answerable — all seven total **51.4 MB**, and the shipped set is one example source not three, so realistically **28–39 MB**. Comfortably under GitHub's 50 MB per-file warning, and refreshed only once or twice a year (D-41). Leaning yes. Note if committing, prefer JmdictFurigana's `.tar.gz` asset (5.2 MB) over the plain `.txt` (11.6 MB).
+- **Do the compressed source files go into git?** Now measured: the four shipped sources total **28.8 MB**. Comfortably under GitHub's 50 MB per-file warning, and refreshed only once or twice a year (D-41). Leaning yes. If committing, prefer JmdictFurigana's `.tar.gz` asset (5.2 MB) over the plain `.txt` (11.6 MB), which would bring it to about 22 MB.
 - **Display policy for `&ok;` readings.** 上手 has じょうて and じょうしゅ marked out-dated. Under D-48 every reading is a section on the word screen, so obsolete ones would appear alongside じょうず unless filtered. Ingest for lookup but hide from learners? Probably — but it needs stating, and D-48 made it more visible than it was.
 - **Policy for sensitive senses.** JMdict is a general dictionary. 生 (なま) carries a third sense referring to unprotected sex; it is legitimate lexicography and correctly tagged, but a learning app pointed at menus by beginners wants a deliberate position rather than a screenshot-driven one.
-- **Example volume.** Largely moot if `JMdict_e_examp` wins — there is roughly one example per word, so "cap at 3–5" never binds. Becomes a real question again if Tanaka is chosen.
+*(Example volume is no longer a question. `JMdict_e_examp` carries roughly one sentence per sense — only 380 senses have more than one — so a "cap at 3–5" would never bind. Nothing to rank or select.)*
 - **Final DB size.** Needs measuring. Combined with Kuromoji's IPADIC this drives APK size — and ML Kit OCR is bundled by preference (D-46), which adds to it. If it's a problem, consider trimming rare JMdict entries or dropping low-frequency examples.
 - **FTS5 or plain indexes?** Longest-match prefix lookup (D-07) may be served fine by a plain index on word text. Measure before adding FTS complexity.
 - **Does the frequency derivation rule survive contact with the data?** `data-model.md` proposes best `nf##` across writing and reading elements, falling back to `ichi1`/`news1`/`spec1`. Confirm against real entries.

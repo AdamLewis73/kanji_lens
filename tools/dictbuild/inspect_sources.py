@@ -126,15 +126,13 @@ def grep(path: Path, needles: list[str], label: str, limit: int = 3) -> None:
 
 
 SECTIONS = {
-    "jmdict": lambda: jmdict(RAW / "JMdict_e.gz", ["上手", "明日", "生"], "JMdict_e"),
+    "jmdict": lambda: jmdict(RAW / "JMdict_e_examp.gz", ["上手", "明日", "生"],
+                             "JMdict_e_examp"),
     "kanjidic": lambda: kanjidic(RAW / "kanjidic2.xml.gz", ["生"]),
     "furigana": lambda: grep(RAW / "JmdictFurigana.txt",
                              ["先生", "明日", "学校", "花火", "一生"],
                              "JmdictFurigana  —  alignment format"),
     "kanjivg": lambda: head(RAW / "kanjivg-20250816.xml.gz", 30, "KanjiVG"),
-    "tanaka": lambda: head(RAW / "examples.utf.gz", 12, "Tanaka Corpus (examples.utf)"),
-    "examp": lambda: jmdict(RAW / "JMdict_e_examp.gz", ["生"], "JMdict_e_examp", 80),
-    "tatoeba": lambda: head(RAW / "jpn_sentences.tsv.bz2", 6, "Tatoeba jpn_sentences"),
 }
 
 

@@ -16,9 +16,9 @@
   "sources": [
     {
       "name": "jmdict",
-      "description": "Japanese-English word entries: writings, readings, senses, part of speech, frequency tags",
-      "url": "http://ftp.edrdg.org/pub/Nihongo/JMdict_e.gz",
-      "filename": "JMdict_e.gz",
+      "description": "Japanese-English word entries: writings, readings, senses, part of speech, frequency tags. The _examp variant is JMdict_e PLUS example sentences nested inside each <sense> — it replaces JMdict_e rather than supplementing it (D-51)",
+      "url": "http://ftp.edrdg.org/pub/Nihongo/JMdict_e_examp.gz",
+      "filename": "JMdict_e_examp.gz",
       "license": "CC BY-SA 4.0 (EDRDG)",
       "versioning": "none",
       "gzipped": true,
@@ -55,39 +55,22 @@
       "version": "2.3.1+2026-07-25",
       "gzipped": false,
       "expected_sha256": "2d5a6a11195ecfbaa56586720fa4e869e5db146eb2973683161fa54fce3936d7"
-    },
-
-    {
-      "name": "examples-tanaka",
-      "description": "CANDIDATE. Tanaka Corpus, ~150k edited pairs. B-lines may carry per-sentence word indices",
-      "url": "http://ftp.edrdg.org/pub/Nihongo/examples.utf.gz",
-      "filename": "examples.utf.gz",
-      "license": "CC BY (EDRDG)",
-      "versioning": "none",
-      "gzipped": true,
-      "group": "examples"
-    },
-    {
-      "name": "examples-jmdict-examp",
-      "description": "CANDIDATE. JMdict variant with examples attached — possibly per sense",
-      "url": "http://ftp.edrdg.org/pub/Nihongo/JMdict_e_examp.gz",
-      "filename": "JMdict_e_examp.gz",
-      "license": "CC BY-SA 4.0 (EDRDG)",
-      "versioning": "none",
-      "gzipped": true,
-      "group": "examples",
-      "header_date_pattern": "JMdict created: (\\d{4}-\\d{2}-\\d{2})"
-    },
-    {
-      "name": "examples-tatoeba",
-      "description": "CANDIDATE. Raw Tatoeba Japanese sentences. URL UNVERIFIED — expected to need fixing on first run",
-      "url": "https://downloads.tatoeba.org/exports/per_language/jpn/jpn_sentences.tsv.bz2",
-      "filename": "jpn_sentences.tsv.bz2",
-      "license": "CC BY 2.0 FR",
-      "versioning": "none",
-      "gzipped": false,
-      "group": "examples",
-      "optional": true
     }
+  ],
+
+  "_rejected": [
+    "Example-sentence sources evaluated 2026-08-06 and rejected; see D-51 for the",
+    "measurements. Kept here so they are not re-proposed without cause.",
+    "",
+    "  Tanaka Corpus   http://ftp.edrdg.org/pub/Nihongo/examples.utf.gz",
+    "      Better word-level coverage (57.3% vs 55.9% of common entries) but only",
+    "      7,537 sense-tagged pairs vs JMdict_e_examp's 31,642. Most B-line tokens",
+    "      carry no sense number.",
+    "",
+    "  Raw Tatoeba     https://downloads.tatoeba.org/exports/per_language/jpn/jpn_sentences.tsv.bz2",
+    "      Export is id/lang/text only. No English pairing, no word index.",
+    "",
+    "  Combining Tanaka with JMdict_e_examp adds +1.7 percentage points. They are",
+    "  the same corpus."
   ]
 }

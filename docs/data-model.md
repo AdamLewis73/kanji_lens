@@ -8,7 +8,7 @@ All free. All require attribution — see the bottom of this file.
 
 | Dataset | Provides | Format | License |
 |---|---|---|---|
-| **JMdict** | Japanese-English word entries: writings, readings, senses, part of speech, frequency tags | Large XML, gzipped | CC BY-SA (EDRDG) |
+| **JMdict** (`_examp` variant) | Word entries: writings, readings, senses, part of speech, frequency tags — **plus example sentences inside each `<sense>`** (D-51) | Large XML, gzipped | CC BY-SA (EDRDG) |
 | **KANJIDIC2** | Per-kanji data: meanings, on/kun readings, stroke count, frequency rank. *(Also carries grade, radical and a pre-2010 JLPT level — none ingested; D-42, D-50)* | XML, gzipped — 13,108 kanji | CC BY-SA (EDRDG) |
 | **KanjiVG** | Stroke order paths | **One combined XML**, gzipped | CC BY-SA |
 | **JmdictFurigana** | Per-character reading alignment — **internal index only**, D-13 | Text or JSON, one entry per line | Derived, CC BY-SA |
@@ -21,11 +21,12 @@ Confirmed August 2026. Acquisition and refresh policy is D-41.
 
 | Dataset | Source | Versioning |
 |---|---|---|
-| JMdict | `ftp.edrdg.org/pub/Nihongo/JMdict_e.gz` | **None** — regenerated daily at a fixed URL |
+| JMdict | `ftp.edrdg.org/pub/Nihongo/JMdict_e_examp.gz` | **None** — regenerated daily at a fixed URL |
 | KANJIDIC2 | `edrdg.org/kanjidic/kanjidic2.xml.gz` | **None** — fixed URL |
-| KanjiVG | GitHub `KanjiVG/kanjivg` releases | Tagged, immutable, SHA-256 published (3.6 MB gzipped) |
-| JmdictFurigana | GitHub `Doublevil/JmdictFurigana` releases | Tagged, immutable, SHA-256 published (5.2 MB gzipped) |
-| Tanaka Corpus | EDRDG — ~150,000 edited sentence pairs | Loose |
+| KanjiVG | GitHub `KanjiVG/kanjivg` releases | Tagged, immutable, SHA-256 published |
+| JmdictFurigana | GitHub `Doublevil/JmdictFurigana` releases | Tagged, immutable, SHA-256 published |
+
+**Four sources, 28.8 MB compressed.** There is no separate example-sentence source — D-51 folded that into the JMdict variant above.
 
 Two practical consequences, both feeding D-41:
 
@@ -34,27 +35,25 @@ Two practical consequences, both feeding D-41:
 
 **Internal file structure is still unverified.** URLs, formats, licensing and versioning are confirmed; the actual element shapes are not. Phase 1's first task remains downloading and examining the real files before writing parsing code.
 
-### Example sentences — three candidates, decide after inspection
+### Example sentences — settled by D-51
 
-`data-model.md` originally named Tatoeba. That predates knowing the alternatives, and the choice should be settled by looking at the files:
+An earlier draft of this file named Tatoeba as a separate source. Three candidates were downloaded and measured on 2026-08-06; **`JMdict_e_examp` won and the others were dropped from the manifest.** Full comparison and the rejected alternatives are in D-51.
 
-All three were downloaded and inspected on 2026-08-05. **Raw Tatoeba is ruled out** — its export is `id \t lang \t text` with no English pairing (that lives in a separate links file) and no word index, so choosing it means rebuilding, worse, what the other two already provide.
+Its examples nest inside each `<sense>`, carrying the Tatoeba sentence id, the word's surface form, and a jpn/eng pair:
 
-The remaining two draw on the *same* underlying corpus — `JMdict_e_examp`'s examples cite Tatoeba sentence ids, and Tanaka is the curated Japanese-English subset of Tatoeba. The real difference is who does the joining:
-
-| Candidate | Structure | Trade-off |
-|---|---|---|
-| **`JMdict_e_examp.gz`** | `<example>` nested **inside `<sense>`**, carrying the Tatoeba id, the word's surface form, and a jpn/eng pair | Sense-level linkage for free, and it replaces `JMdict_e` rather than adding to it. But thin: **13.2% of entries covered**, 32,035 examples, ~1.1 per covered entry |
-| **Tanaka** (`examples.utf`) | `A:` line holds the jpn/eng pair; `B:` line indexes every word with its reading, `[sense#]`, `(#ent_seq)`, and `{surface form}` | More sentences per word, and it carries sense indices too. Costs a custom parser for the `B:` format and the join we would otherwise get free |
-
-Example of Tanaka's `B:` line, which is denser than its documentation suggests:
-
-```
-A: 彼は忙しいと言いました。	He said he was busy.#ID=303693_100004
-B: 彼(かれ)[01] は 忙しい(いそがしい) と 言う{言いました}
+```xml
+<sense>
+  <gloss>CD player</gloss>
+  <example>
+    <ex_srce exsrc_type="tat">162365</ex_srce>
+    <ex_text>ＣＤプレイヤー</ex_text>
+    <ex_sent xml:lang="jpn">私は、このＣＤプレイヤーをただで得ました。</ex_sent>
+    <ex_sent xml:lang="eng">I got this CD player for free.</ex_sent>
+  </example>
+</sense>
 ```
 
-Still open — see `docs/progress/phase-01-dictionary-builder.md`.
+**Coverage is 41.4% of common senses** — those belonging to entries with a frequency tag. The ceiling across all sources is about 43%, because the corpus simply doesn't attest the rest. **These are ingested but not rendered in v1** (D-51); whether to show them is a Phase 2 decision made against real screens rather than a percentage.
 
 ### Notes on specific datasets
 
@@ -137,8 +136,10 @@ kanji_in_word       ← from JmdictFurigana; powers D-04 and the Examples tab
   word_id
   reading_of_kanji  セイ  — which reading this kanji carries in THIS word
 
-example
-  word_id, japanese, english
+example             ← ingested but NOT rendered in v1 (D-51)
+  word_id, sense_order       attaches to a SENSE, not just a word
+  japanese, english
+  tatoeba_id                 ex_srce; lets a sentence be traced upstream
 
 strokes
   kanji_char, svg_paths
