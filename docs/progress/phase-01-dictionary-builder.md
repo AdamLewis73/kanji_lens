@@ -103,19 +103,20 @@ Write the schema DDL, then begin the **KANJIDIC2 parser** — smallest, self-con
 - [ ] Indexes for lookup patterns (exact word, prefix/longest-match, kanji → words)
 - [ ] Output size measured and recorded below
 - [ ] Attribution text collected for the in-app licenses screen
-- [ ] Verification cases V-01 – V-05 and V-17 – V-19 pass
+- [ ] Verification cases V-01 – V-05, V-17 – V-19, and V-22 pass
+      *(V-21 and V-23 are UI cases and belong to Phase 2)*
 
 ## Open questions
 
-- **Do the compressed source files go into git?** Now measured: the four shipped sources total **28.8 MB**. Comfortably under GitHub's 50 MB per-file warning, and refreshed only once or twice a year (D-41). Leaning yes. If committing, prefer JmdictFurigana's `.tar.gz` asset (5.2 MB) over the plain `.txt` (11.6 MB), which would bring it to about 22 MB.
-- **Display policy for `&ok;` readings.** 上手 has じょうて and じょうしゅ marked out-dated. Under D-48 every reading is a section on the word screen, so obsolete ones would appear alongside じょうず unless filtered. Ingest for lookup but hide from learners? Probably — but it needs stating, and D-48 made it more visible than it was.
-- **Policy for sensitive senses.** JMdict is a general dictionary. 生 (なま) carries a third sense referring to unprotected sex; it is legitimate lexicography and correctly tagged, but a learning app pointed at menus by beginners wants a deliberate position rather than a screenshot-driven one.
+- **Verb-stem conjugation in the reading matcher.** Optional. D-52's normalizer leaves 2.25% unmatched; roughly half of that is stem forms (引き, 言い, 売り, 買い) that a conjugation rule would catch, taking the residue to about 1.5%. Diminishing returns — decide after seeing whether the Examples tab looks thin anywhere.
 *(Example volume is no longer a question. `JMdict_e_examp` carries roughly one sentence per sense — only 380 senses have more than one — so a "cap at 3–5" would never bind. Nothing to rank or select.)*
 - **Final DB size.** Needs measuring. Combined with Kuromoji's IPADIC this drives APK size — and ML Kit OCR is bundled by preference (D-46), which adds to it. If it's a problem, consider trimming rare JMdict entries or dropping low-frequency examples.
 - **FTS5 or plain indexes?** Longest-match prefix lookup (D-07) may be served fine by a plain index on word text. Measure before adding FTS complexity.
 - **Does the frequency derivation rule survive contact with the data?** `data-model.md` proposes best `nf##` across writing and reading elements, falling back to `ichi1`/`news1`/`spec1`. Confirm against real entries.
 
 *Resolved since last update:* dictionary versioning (now the `meta` table); JLPT handling (D-42); refresh cadence (D-41); merge/removal handling (D-39, D-40, D-43); **the radical number→glyph mapping, retired by D-50 dropping radicals entirely** — a UX simplification that removed a data-sourcing task.
+
+*Also resolved:* whether to commit the compressed sources (D-55 — yes, ~29 MB, with `.gitattributes -text` so checksums survive a Windows checkout); the `&ok;` display policy (D-53 — kept and marked archaic); sensitive senses (D-54 — two toggles with opposite defaults, obscurity handled as ranking rather than a setting); and the reading-alignment approach (D-52 — normalize, keep the residue as NULL).
 
 *Parked, not blocking Phase 1:* ambiguity chips (D-07 records the current position; the alternative is always taking the longest match) and word-screen formatting under D-48.
 

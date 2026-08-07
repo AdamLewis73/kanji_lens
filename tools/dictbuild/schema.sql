@@ -119,8 +119,13 @@ CREATE INDEX idx_example_word ON example (word_id, sense_order);
 --
 -- Storing BOTH, with a NULLABLE canonical, makes those failures countable
 -- instead of silent: `SELECT count(*) FROM kanji_in_word WHERE reading_type IS
--- NULL` is the health check. A build that suddenly cannot match 12% of rows
--- says so, rather than quietly rendering a thinner Examples tab.
+-- NULL` is the health check (V-22). A build that suddenly cannot match 12% of
+-- rows says so, rather than quietly rendering a thinner Examples tab.
+--
+-- Measured over 574,731 spans (D-52): 8.00% unmatched with exact comparison,
+-- 2.25% after rendaku, gemination and okurigana normalization. Fail the build
+-- above ~4%. What remains is verb stem forms (引き, 言い) and readings
+-- KANJIDIC2 does not record at all (文 → も in 文字).
 
 CREATE TABLE kanji_in_word (
     kanji_char        TEXT    NOT NULL REFERENCES kanji(char),

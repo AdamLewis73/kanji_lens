@@ -90,6 +90,15 @@ Format is `text|reading|index:kana;index:kana`, confirmed by inspection:
 
 Two things fall out of this. **Range notation marks jukujikun explicitly**, so V-03 is a matter of honouring the format rather than detecting the case. And **surface kana routinely differ from dictionary readings**, which is the fuzzy-matching problem in V-17.
 
+Measured over 574,731 spans, the matcher's residue (D-52):
+
+| Matching | Unmatched |
+|---|---:|
+| Exact comparison only | 8.00% |
+| Plus rendaku, gemination, okurigana | **2.25%** |
+
+The 8% is not a random sample — sound changes cluster in *frequent* compounds, because common words erode phonetically. Dropping them would cost 仕事, 出口, 学校 and 一生. The 2.25% that remains is verb stem forms (引き, 言い) and readings KANJIDIC2 simply doesn't record (文 → も in 文字); those are stored with `canonical_reading` NULL, so they join no reading group and never surface.
+
 **Kana script normalization (D-37).** The sources disagree on script, and the ingest must reconcile them deliberately:
 
 | Source | Stores readings as |

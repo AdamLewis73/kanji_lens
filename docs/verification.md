@@ -105,6 +105,25 @@ Not testable against a single build. Build the dictionary twice from different s
 
 Expect: the removed `(text, reading)` appears in `changes` with the build id, and with a replacement key where JMdict recorded one. An empty `changes` table on a build where keys genuinely disappeared means the diff never ran — and nothing downstream will complain, because a missing warning looks exactly like no warning being needed.
 
+### V-22 · Reading-alignment residue stays within bounds (D-52, V-17)
+
+A build-health assertion rather than a content check, and the mechanism that makes V-17's silent failures visible.
+
+```sql
+SELECT count(*) * 100.0 / (SELECT count(*) FROM kanji_in_word)
+FROM kanji_in_word WHERE reading_type IS NULL;
+```
+
+| Matcher state | Expected residue |
+|---|---|
+| Exact comparison only | ~8.0% |
+| With rendaku + gemination + okurigana (D-52) | **~2.25%** |
+| Plus verb-stem conjugation, if implemented | ~1.5% |
+
+**Fail the build above roughly 4%.** The number is stable across dictionary refreshes because it reflects the matcher, not the data — so a jump means the normalizer broke, not that JMdict changed.
+
+This is the whole reason unmatched spans are stored with NULL rather than dropped. Deleting them destroys the evidence and the Examples tab simply gets thinner, which nobody notices. Spot-check that 仕事, 出口, 学校 and 一生 all resolve — those are the high-frequency compounds that fail under exact matching.
+
 ---
 
 ## Phase 2 — Tokenization and lookup
@@ -134,6 +153,34 @@ Two conventions that are easy to conflate, on screen at the same time:
 - On'yomi group header on the 生 kanji screen → **セイ** (katakana)
 
 If both render in the same script, one convention has been applied globally.
+
+### V-21 · Obsolete readings are visibly distinguished (D-53, D-48)
+
+Scan or paste **上手**. Under D-48 the word screen lists every reading as a section, so all five appear:
+
+| Reading | Tag | Expected treatment |
+|---|---|---|
+| じょうず | — | normal |
+| うわて | — | normal |
+| かみて | — | normal |
+| じょうて | `ok` | **marked archaic** |
+| じょうしゅ | `ok` | **marked archaic** |
+
+The failure this catches: じょうて rendering identically to じょうず. Nothing errors, the screen looks complete, and the app has quietly taught a reading that has not been current for centuries — to a learner with no way to know the difference.
+
+Note the app never knows *which* reading was scanned (D-44, D-53), so this cannot be solved by only showing archaic readings when they were the one photographed. Every reading is always shown; the marking is what carries the information.
+
+Also confirm the reverse: a word with no `ok` readings shows no archaic marking anywhere. A marker applied globally is as wrong as one never applied, and looks just as plausible.
+
+### V-23 · Sense filtering never empties a word (D-54, D-40)
+
+With "show explicit content" **off** — the default — find a word whose senses are *all* tagged `vulg`, `sens`, `derog` or `X`, and open it.
+
+Expect the senses to be **shown anyway**, or an explicit "this word has hidden senses" affordance. What must not happen is the word resolving to nothing.
+
+The trap: filtering is applied per sense, so a word where every sense is filtered silently becomes an empty result. It reads as "the dictionary doesn't have this word" — a broken app rather than a discreet one — and it happens on exactly the words a user is most likely to be puzzled by. Same failure shape as D-40, arriving from a different direction.
+
+Check the counts hold too: roughly 900 senses carry the explicit tags and about 3,900 carry `sl` / `col`. If toggling the explicit filter changes far more than ~900 senses, the wrong tag set is wired to it.
 
 ---
 

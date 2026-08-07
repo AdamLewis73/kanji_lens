@@ -80,6 +80,10 @@ Scan for the relevant entry rather than reading the whole file.
 | D-49 | A single-character token opens the kanji screen directly | UI |
 | D-50 | Kanji screen carries only learner-usable reference; grade and radical dropped | UI |
 | D-51 | Example sentences are ingested in v1 but not rendered; decide in Phase 2 | Data |
+| D-52 | Reading alignment normalizes sound changes; unmatched spans kept as NULL | Data |
+| D-53 | Obsolete readings are ingested and displayed, marked as archaic | UI / Data |
+| D-54 | Two sense filters with opposite defaults; obscurity is ranking, not a setting | UI |
+| D-55 | The compressed source files are committed to git | Data |
 
 **Bold** entries are the ones whose violation causes silent data corruption or a forced rewrite. They are also listed in `CLAUDE.md`.
 
@@ -339,6 +343,77 @@ Recorded so this is not re-litigated. All figures are for **common** entries —
 *Not affected by any of this:* the kanji Examples tab, which shows example **words** grouped by reading (D-04) and is built from JMdict plus JmdictFurigana. Its coverage is essentially complete. The product thesis does not rest on example sentences.
 
 *Phase 2 revisit:* decide whether to render, and if so whether sense-attached only or word-level too. See the checkpoint table in `roadmap.md`.
+
+**D-52 — Reading alignment normalizes sound changes. Spans that still don't match are kept with a NULL reading, never dropped and never guessed.**
+
+JmdictFurigana gives the kana a kanji carries **as it appears** in a word, which routinely differs from its dictionary reading. Matching the two is the hardest correctness problem in Phase 1 (V-17).
+
+Measured over 574,731 spans:
+
+| Matcher | Unmatched |
+|---|---:|
+| Exact comparison only | **8.00%** |
+| Plus rendaku, gemination and okurigana | **2.25%** |
+
+Three normalizations, roughly twenty lines between them:
+
+- **Rendaku** — unvoice the first mora. 花火 gives 火 → び; び unvoiced is ひ, which is 火's kun reading.
+- **Gemination** — restore the mora a trailing っ replaced. 学校 gives 学 → がっ; がっ expands to がく = カク.
+- **Okurigana** — compare against KANJIDIC2's full kun form as well as its stem, since `い.きる` may surface as either い or いきる.
+
+*Why not simply drop unmatched spans*, which was proposed and is superficially attractive at 8%: that 8% is **not a random sample**. Rendaku and gemination happen in established, frequent compounds — words erode phonetically *because* they are common. Dropping them removes 仕事 from 事's こと group, 出口 from 口's くち group, and 学校 from 学's カク group, leaving the Examples tab showing rarer words in their place. That is precisely the failure V-04 exists to prevent.
+
+*What remains at 2.25%* is two categories. **Verb stem forms** — 引き, 言い, 売り, 買い — which a conjugation rule would mostly catch, taking the residue to roughly 1.5%. And **genuinely irregular readings** KANJIDIC2 does not record at all (文 → も in 文字, 其 → そ), which no rule can derive.
+
+That irreducible remainder is handled exactly as the drop-them proposal suggested: `canonical_reading` and `reading_type` are **NULL**, so the span joins no reading group and never appears on the Examples tab. The idea was right; it was only wrong applied to the whole 8% rather than the 2% that is actually irreducible.
+
+*Why NULL rather than deletion:* it makes a silent failure countable. `SELECT count(*) FROM kanji_in_word WHERE reading_type IS NULL` is the build health check (V-22). A future build whose residue jumps from 2% to 20% says so, instead of quietly shipping a thinner Examples tab. Deleting the rows destroys that evidence; guessing a reading manufactures wrong data.
+
+**D-53 — Obsolete readings are ingested and displayed, marked as archaic.**
+
+JMdict tags out-dated kana with `&ok;` on the reading. 上手 carries じょうて and じょうしゅ, real historical readings nobody uses today.
+
+They are kept, and shown on the word screen alongside current readings — visually distinguished, not hidden.
+
+*Why:* this is a **scanning** app. Someone photographing an inscription at a temple, an old shopfront, or a period text is exactly the person who needs じょうしゅ, and that is a genuine use of the product rather than a hypothetical. Hiding the reading would leave them with no explanation for what is in front of them.
+
+*And we could not act on the distinction anyway.* D-48 shows every reading of a written form, because the app cannot know which one applies (D-44). There is no point at which the app knows a user "scanned the archaic reading" — it only knows they scanned 上手.
+
+Presentation — how strongly to mark it, what wording — is a Phase 2 design question. V-21 covers the failure mode: an obsolete reading rendered identically to a current one teaches kana nobody uses.
+
+**D-54 — Two sense filters with opposite defaults. Obscurity is a ranking rule, not a user setting.**
+
+JMdict is a general-purpose dictionary and records how words are actually used. 生 (なま) carries a sense referring to unprotected sex, directly below "raw; uncooked; fresh."
+
+Two user-facing toggles, and the defaults deliberately differ because the risks are not symmetric:
+
+| Toggle | Tags | Senses | Default | Reasoning |
+|---|---|---:|---|---|
+| Show explicit content | `vulg` `sens` `derog` `X` | ~900 | **off** | Showing by default risks an unpleasant surprise; hiding costs almost nothing |
+| Show slang & colloquial | `sl` `col` | ~3,900 | **on** | Signage, menus and manga are full of casual language. Hiding it by default means failing to explain text the user is looking at |
+
+**Obscurity is a separate concern and not a setting.** `arch` (3,787), `obs` (736) and `rare` (3,144) look like the same category but describe *usefulness*, not offence. They get a ranking rule instead:
+
+- **On a word's own screen — show every sense**, archaic included. The user opened that word specifically and deserves the complete picture.
+- **In example lists — never lead with them.** The kanji Examples tab must not surface obscure vocabulary (V-04).
+
+Note this is about *word* selection, not reading identification. The app never knows which reading was scanned (D-53), and none of these rules require it to.
+
+**The rule that stops the filter backfiring: never filter a word to zero senses.** If every sense of a scanned word is tagged, show them regardless. Filtering to nothing turns a real word into "not found", which reads as a broken app rather than a discreet one — the same failure D-40 prevents for saved items. Covered by V-23.
+
+All these tags live on `word_sense.misc`, so every one of these policies is a query-time decision. Changing any of them never requires a rebuild.
+
+**D-55 — The compressed source files are committed to git.**
+
+About 29 MB across four files, in `tools/dictbuild/data/raw/`.
+
+*Why:* three of the four sources are published at fixed URLs and regenerated continuously — **a past version cannot be re-fetched** (D-41). Committing them is therefore the only mechanism that makes a shipped build reproducible, and it makes a fresh clone self-contained with no download step.
+
+*Why the cost is acceptable:* refreshes happen at defined events, once or twice a year (D-41), so history growth is bounded. Every file is well under GitHub's 50 MB per-file warning.
+
+*One non-obvious requirement.* `.gitattributes` marks the directory `-text`. Without it git rewrites LF to CRLF on Windows checkouts, changing the bytes of `JmdictFurigana.txt` and therefore its SHA-256 — so the file would fail the verification in `sources.lock.json` on a fresh clone, defeating the entire purpose. Also `-diff`, since a binary diff of a 13 MB gzip helps nobody.
+
+*If this is ever reversed:* removing large files from git means rewriting history. Adding them was the cheap direction; that asymmetry is why the decision waited until real sizes were known.
 
 ---
 

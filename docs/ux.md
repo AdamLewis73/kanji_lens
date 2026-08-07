@@ -54,6 +54,8 @@ Composed of:  上 above, up    手 hand
 
 Reading → meanings, repeated per reading. **Component chips come last**, below every reading, showing meanings only (D-06).
 
+**Obsolete readings appear too, marked as archaic** (D-53). 上手 has five readings; じょうて and じょうしゅ are historical and shown visually distinguished rather than hidden. Someone photographing a temple inscription or an old shopfront is exactly the person who needs them — and the app never knows which reading was scanned anyway, so hiding them would just leave a gap with no explanation. How strongly to mark them is a Phase 2 design question; V-21 covers the failure of not marking them at all.
+
 **Example sentences are not rendered in v1** (D-51). They are ingested and sit in the dictionary, but only 41.4% of common senses have one, and that number is impossible to judge without seeing real screens. The slot in the layout — beneath each sense, above the next reading — is reserved:
 
 ```
@@ -137,6 +139,17 @@ Silently omitting the card is the failure this prevents, and it is invisible: th
 **Attribution screen.** A license obligation under CC BY-SA — see `data-model.md`. Not a nicety.
 
 **Storage screen (D-25).** Usage breakdown, a clear action, and a "save scan images" toggle. Users who discover an app consuming 500 MB uninstall it.
+
+**Content settings (D-54).** Two toggles, living wherever Settings lands — not in the bottom nav (D-36):
+
+| Toggle | Default |
+|---|---|
+| Show explicit content — vulgar, sensitive, derogatory | **off** |
+| Show slang & colloquial | **on** |
+
+The defaults differ on purpose. Explicit senses are ~900 out of 252,927, so hiding them costs almost nothing and showing them by default risks an unpleasant surprise. Slang and colloquial are ~3,900 and pervade real signage, menus and manga — hiding those by default means failing to explain the text a user is standing in front of.
+
+**Never filter a word to zero senses.** If everything is filtered, show it regardless. An empty result reads as "the dictionary doesn't have this word", which is a broken app rather than a discreet one — the same failure D-40 prevents for saved items. See V-23.
 
 ## Process
 
