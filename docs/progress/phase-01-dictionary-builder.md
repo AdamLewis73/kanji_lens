@@ -1,11 +1,11 @@
 # Phase 1 — Dictionary Builder
 
-**Status:** in progress — three of four parsers done; KanjiVG remains
+**Status:** in progress — all four parsers done; `changes` diff and verification remain
 **Updated:** 2026-08-07
 
 ## Current state
 
-`tools/dictbuild/` builds a 117 MB `kanjilens.db` in about 40 seconds: `kanji`, `word`, `word_sense`, `example`, `kanji_in_word`, `meta`. KanjiVG stroke paths remain, then the `changes` diff and the verification harness.
+`tools/dictbuild/` builds a 117 MB `kanjilens.db` in about 40 seconds: `kanji`, `word`, `word_sense`, `example`, `kanji_in_word`, `meta`. All four parsers are in. The `changes` diff (D-39) and the verification harness remain.
 
 ```
 python fetch.py     # sources from the pinned manifest (D-41)
@@ -100,7 +100,7 @@ colliding keys, and resolve the XML entities the DTD declares.
 - [x] KANJIDIC2 parser — 13,108 kanji, 2,501 ranked (no grade, radical or JLPT: D-50, D-42)
 - [x] JmdictFurigana ingest → `kanji_in_word` — 574,721 rows, 7 unmatched keys
 - [x] Kana script normalization tolerant of rendaku and gemination — **2.09% residue** (D-37, V-17, V-22)
-- [ ] KanjiVG ingest → stroke paths
+- [x] KanjiVG ingest → stroke paths — 6,416 kanji, **100% of the ranked 2,501**
 - [x] Example sentences ingested from `<sense>` — 58,839 rows — **not rendered** (D-51)
 - [x] `meta` table with build id and per-source header dates (D-41)
 - [ ] `changes` table + key-set diff against previous build (D-39, V-19)

@@ -25,6 +25,7 @@ from pathlib import Path
 import ingest_furigana
 import ingest_jmdict
 import ingest_kanjidic
+import ingest_kanjivg
 
 HERE = Path(__file__).parent
 SCHEMA = HERE / "schema.sql"
@@ -79,6 +80,7 @@ STAGES = {
     "kanjidic": (ingest_kanjidic.ingest, "kanjidic2"),
     "jmdict": (ingest_jmdict.ingest, "jmdict"),
     "furigana": (ingest_furigana.ingest, "jmdictfurigana"),
+    "kanjivg": (ingest_kanjivg.ingest, "kanjivg"),
 }
 
 # Counters that mean something is wrong, with the bound at which to say so.
@@ -88,6 +90,8 @@ BOUNDS = {
     "on_not_katakana": 0,            # D-37: on'yomi are katakana, no exceptions
     "kun_katakana_loanword": 100,    # ~60 expected — loanword ateji, see V-24
     "unmatched_pct": 4,              # D-52 measured 2.25%; V-22 fails above ~4%
+    "stroke_count_mismatch": 150,    # ~109 expected — KanjiVG and KANJIDIC2 genuinely
+                                     #   disagree on 辶 forms etc. Bound, not equality (V-09)
 }
 
 

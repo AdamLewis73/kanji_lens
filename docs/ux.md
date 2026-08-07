@@ -72,7 +72,7 @@ Two things to settle in Phase 2: whether to show them at all, and how to keep me
 |---|---|
 | **Overview** | Meanings, on'yomi / kun'yomi, and — when the kanji is also a standalone word — an **As a word** section listing its senses (D-49). Example sentences there follow the same v1 rule as the word screen: ingested, not rendered (D-51) |
 | **Examples** | Other **words** containing this kanji, grouped by reading, frequency-sorted (D-04) |
-| **Stroke Order** | KanjiVG animation — paths drawn sequentially — plus the stroke count |
+| **Stroke Order** | KanjiVG animation — paths drawn sequentially — plus the stroke count. **Show the number of paths being animated, not KANJIDIC2's figure**: the two disagree for ~1.7% of kanji, mostly 辶 forms, and 辻 labelled "5 strokes" while visibly drawing 6 is a contradiction the user watches happen (V-09) |
 
 **Grade, classical radical and JLPT level are deliberately absent** (D-50, D-42). "5 strokes · Grade 1 · Radical 100" is three facts, two of which mean nothing to a non-Japanese learner. Stroke count moved to the Stroke Order tab, where it needs no explanation.
 

@@ -207,9 +207,17 @@ Check the counts hold too: roughly 900 senses carry the explicit tags and about 
 
 ### V-09 · Stroke count and stroke path count agree (KanjiVG)
 
-For any kanji, the number of animated paths must equal KANJIDIC2's stroke count. A mismatch means the SVG was parsed incorrectly — the animation still plays and still looks like handwriting, which is exactly why this needs an assertion rather than an eyeball.
+The animation still plays and still looks like handwriting whatever the path count is, which is why this needs an assertion rather than an eyeball.
 
-**Compare against the *first* `stroke_count` value only.** KANJIDIC2 may list several; the first is the accepted count and the rest are documented common miscounts. Comparing against all of them, or against the last, produces failures that look like parser bugs but aren't.
+**Compare against the *first* `stroke_count` value only.** KANJIDIC2 may list several; the first is the accepted count and the rest are documented common miscounts.
+
+**But the expected mismatch count is not zero.** Measured on the built database: **109 of 6,416** ingested kanji disagree (1.7%), and **20 of 2,501** ranked ones (0.8%). They are overwhelmingly ±1, and they cluster on characters containing 辶 (shinnyou), which is genuinely drawn with two or three strokes depending on whether the printed or handwritten form is followed — 辻 (5 vs 6), 逗 (10 vs 11), 謎 (16 vs 17), 葛 (11 vs 12).
+
+So the assertion is a **bound, not an equality**: fail above ~150 mismatches. A real parsing fault produces a far higher rate or a systematic offset, not a 1.7% scatter concentrated on one radical. Spot-check that 生 (5), 先 (6), 手 (4), 一 (1) and 鬱 (29) all match exactly — a parser that flattens component groups wrongly fails those immediately.
+
+**Display consequence.** The Stroke Order tab shows the stroke count (D-50). It must show the **number of paths being animated**, not KANJIDIC2's figure — otherwise 辻 says "5 strokes" while the animation visibly draws 6, and the user is watching the contradiction happen.
+
+**Coverage is not universal and that is expected.** KanjiVG holds 6,702 characters against KANJIDIC2's 13,108, so 6,692 kanji have no stroke data at all. But coverage of the **top 2,501 ranked kanji is 100%**, so the gap falls entirely on rare characters. Assert that number rather than total coverage; a drop below it means the ingest is dropping entries.
 
 Spot-check a low-stroke and a high-stroke character.
 
