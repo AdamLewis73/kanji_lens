@@ -99,9 +99,22 @@ def _ex_sent(example: ET.Element, lang: str) -> str | None:
     return None
 
 
+# JMdict's final entry is not a word. It stamps the file's creation date into
+# the data itself:
+#
+#   <ent_seq>9999999</ent_seq>
+#   <keb>ＪＭｄｉｃｔ</keb>
+#   <gloss>Japanese-Multilingual Dictionary Project - Creation Date: …</gloss>
+#
+# Ingested naively it becomes a lookup-able word, which is junk in a dictionary.
+_METADATA_ENT_SEQ = 9999999
+
+
 def expand(entry: ET.Element, codes: dict[str, str]) -> list[dict]:
     """One entry -> the (text, reading) rows it legitimately produces."""
     ent_seq = int(entry.findtext("ent_seq"))
+    if ent_seq == _METADATA_ENT_SEQ:
+        return []
 
     writings = {}                                     # keb -> priority set
     for k in entry.findall("k_ele"):
@@ -188,6 +201,8 @@ def ingest(db: sqlite3.Connection, path: Path) -> Counter:
 
     for words in parse(path, codes):
         stats["entries"] += 1
+        if not words:
+            stats["skipped_metadata_entry"] += 1
         for w in words:
             key = (w["text"], w["reading"])
             rank = freq_rank(w["pri"])

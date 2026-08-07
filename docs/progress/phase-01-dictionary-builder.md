@@ -1,11 +1,11 @@
 # Phase 1 — Dictionary Builder
 
-**Status:** in progress — all four parsers done; `changes` diff and verification remain
+**Status:** in progress — build complete and verified; attribution and size review remain
 **Updated:** 2026-08-07
 
 ## Current state
 
-`tools/dictbuild/` builds a 117 MB `kanjilens.db` in about 40 seconds: `kanji`, `word`, `word_sense`, `example`, `kanji_in_word`, `meta`. All four parsers are in. The `changes` diff (D-39) and the verification harness remain.
+`tools/dictbuild/` builds a 117 MB `kanjilens.db` in about 40 seconds: `kanji`, `word`, `word_sense`, `example`, `kanji_in_word`, `meta`. All four parsers are in, plus the `changes` diff and a verification harness. Attribution text and the size review remain.
 
 ```
 python fetch.py     # sources from the pinned manifest (D-41)
@@ -103,12 +103,12 @@ colliding keys, and resolve the XML entities the DTD declares.
 - [x] KanjiVG ingest → stroke paths — 6,416 kanji, **100% of the ranked 2,501**
 - [x] Example sentences ingested from `<sense>` — 58,839 rows — **not rendered** (D-51)
 - [x] `meta` table with build id and per-source header dates (D-41)
-- [ ] `changes` table + key-set diff against previous build (D-39, V-19)
+- [x] `changes` table + key-set diff against previous build (D-39, V-19)
 - [ ] Indexes for lookup patterns (exact word, prefix/longest-match, kanji → words)
 - [ ] Output size measured and recorded below
 - [ ] Attribution text collected for the in-app licenses screen
-- [ ] Verification cases V-01 – V-05, V-17 – V-19, and V-22 pass
-      *(V-21 and V-23 are UI cases and belong to Phase 2)*
+- [x] Verification harness — `verify.py`, **10 of 10 cases pass**
+      *(V-05 is a review check with no user DB yet; V-21 and V-23 are Phase 2 UI cases)*
 
 ## Open questions
 

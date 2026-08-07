@@ -22,6 +22,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+import changes
 import ingest_furigana
 import ingest_jmdict
 import ingest_kanjidic
@@ -32,6 +33,8 @@ SCHEMA = HERE / "schema.sql"
 LOCK = HERE / "sources.lock.json"
 RAW = HERE / "data" / "raw"
 DEFAULT_OUT = HERE / "data" / "build" / "kanjilens.db"
+# The last SHIPPED build's key list, committed. See changes.py.
+BASELINE_KEYS = HERE / "baseline" / "keys.tsv.gz"
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -129,6 +132,22 @@ def main() -> int:
         for k, v in stats.items():
             print(f"    {k:<26} {v:>9,}{_flag(k, v)}")
         print(f"    {'elapsed':<24} {time.monotonic() - started:>9.1f}s")
+
+    # Finalize: emit this build's key list, then diff it against the last
+    # shipped one to populate `changes` (D-39). Both need the completed word
+    # table, so they run after every ingest stage rather than as one of them.
+    if not args.only:
+        print("changes")
+        keys_out = args.out.parent / "keys.tsv.gz"
+        n = changes.write_keys(db, keys_out)
+        stats = changes.diff(db, BASELINE_KEYS, bid)
+        db.commit()
+        print(f"    {'keys written':<26} {n:>9,}")
+        for k, v in stats.items():
+            print(f"    {k:<26} {v:>9,}")
+        if stats.get("baseline_absent"):
+            print(f"    -> no baseline yet. To ship this build as the reference:")
+            print(f"       cp {keys_out.name} baseline/keys.tsv.gz")
 
     # Bulk inserts leave free pages scattered through the file. The dictionary
     # ships in an APK, so a few megabytes for one command is worth taking.
