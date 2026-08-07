@@ -143,7 +143,12 @@ word_frequency
 kanji_in_word       ← from JmdictFurigana; powers D-04 and the Examples tab
   kanji_char        生
   word_id
-  reading_of_kanji  セイ  — which reading this kanji carries in THIS word
+  position          character index within the word
+  surface_reading   がっ  — the kana as it appears in THIS word
+  canonical_reading カク  — the dictionary reading it matched; NULL = unmatched
+  reading_group     カク / い  — what D-04 groups by (okurigana stripped)
+  reading_type      'on' | 'kun' | NULL
+  word_freq         word.freq_rank denormalized, NULL stored as 9999
 
 example             ← ingested but NOT rendered in v1 (D-51)
   word_id, sense_order       attaches to a SENSE, not just a word
@@ -173,7 +178,19 @@ meta                ← one row; lets the app detect an asset upgrade
 | 生, kun groups | 13 | 8 |
 | words under い | 4 | 136 |
 
-**Sort by `freq_rank` with NULLs last; never filter on it.** About 74% of words are unranked, and a reading group whose words happen to all be unranked would render as an empty panel — 手's ズ group is exactly that case, with one unranked word. Filtering makes a group that exists in the data show nothing.
+**Sort by frequency with unranked last; never filter on it.** About 86% of words are unranked, and a reading group whose words happen to all be unranked would render as an empty panel — 手's ズ group is exactly that case, with one unranked word. Filtering makes a group that exists in the data show nothing.
+
+**The Examples-tab query must be an ordered index scan, not an aggregate.** `kanji_in_word` carries `word_freq` denormalized and the index is `(kanji_char, reading_group, word_freq)`, so:
+
+```sql
+SELECT word_id FROM kanji_in_word
+WHERE kanji_char = ? AND reading_group = ?
+ORDER BY word_freq LIMIT 12          -- fetch a few extra, dedupe by reading
+```
+
+stops after twelve rows. Ordering by the word's own `freq_rank` instead requires joining every row in the group, sorting in a temp b-tree, and only then applying `LIMIT` — so the cost is the size of the whole group. Measured: **10.94 ms → 0.079 ms** for 生/セイ, which holds 1,462 rows. The largest groups belong to the commonest kanji, so this is the screen users open most.
+
+Unranked words are stored as `9999` rather than NULL precisely so a plain ascending scan orders correctly without a `NULLS LAST` clause the index cannot use.
 
 `changes` is **derived** — recomputed each build by comparing this build's `(text, reading)` key set against the previous shipped build's. It accumulates nothing, so the dictionary stays disposable (D-38). The only artifact carried between builds is the previous key list.
 

@@ -136,6 +136,7 @@ CREATE TABLE kanji_in_word (
                                          --   い.きる — kun readings keep their markers
     reading_group     TEXT,              -- カク / い — what D-04 GROUPS BY
     reading_type      TEXT,              -- 'on' | 'kun' | NULL when unmatched
+    word_freq         INTEGER NOT NULL,  -- word.freq_rank denormalized, NULL as 9999
     PRIMARY KEY (kanji_char, word_id, position)
 );
 
@@ -157,7 +158,31 @@ CREATE TABLE kanji_in_word (
 -- word and splits across no character. Inventing an alignment would teach a
 -- false reading (V-03, D-06).
 
-CREATE INDEX idx_kiw_group ON kanji_in_word (kanji_char, reading_type, reading_group);
+-- (kanji_char, reading_group) and NOT (kanji_char, reading_type, reading_group).
+--
+-- reading_group is NULL exactly when reading_type is NULL — both are set only
+-- on a successful match — so filtering on the group already excludes unmatched
+-- spans, and `reading_type IS NOT NULL` is redundant.
+--
+-- It is worse than redundant: SQLite compiles IS NOT NULL into a RANGE
+-- condition, and a range on the second column stops the third being usable for
+-- equality. With reading_type in the middle the Examples-tab query degraded to
+-- scanning every row for the kanji and filtering in memory — 5.9ms against
+-- 0.1ms for every other indexed lookup in this schema.
+-- word_freq is denormalized into this table, and the index carries it as its
+-- third column, so the Examples-tab query becomes an ordered index scan that
+-- stops after N rows.
+--
+-- Without it, ordering by the word's frequency requires joining every row in
+-- the group to `word`, sorting in a temp b-tree, and only then applying LIMIT —
+-- so the query costs the size of the whole group. 生/セイ holds 1,462 rows and
+-- 手/て holds 1,835, and those are the most common kanji, i.e. exactly the
+-- screens a user opens most. Measured at ~11ms on a desktop before, which would
+-- be several times that on a phone, once per reading group on the screen.
+--
+-- NULL ranks are stored as 9999 rather than NULL so a plain ascending sort puts
+-- unranked words last (V-04) without a NULLS LAST clause the index cannot use.
+CREATE INDEX idx_kiw_group ON kanji_in_word (kanji_char, reading_group, word_freq);
 
 
 -- ------------------------------------------------------------- stroke order

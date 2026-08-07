@@ -136,7 +136,11 @@ The meaning shown comes from `snapshot_gloss` (D-43); the merge target from the 
 
 Silently omitting the card is the failure this prevents, and it is invisible: the list is simply one shorter than the user remembers. They cannot tell whether the app lost their word or they misremembered saving it.
 
-**Attribution screen.** A license obligation under CC BY-SA — see `data-model.md`. Not a nicety.
+**Attribution screen.** A licence obligation under CC BY-SA, and EDRDG's statement is specific about its shape for mobile apps:
+
+> acknowledgement must be made **on a separate screen accessed from a menu, such as one labelled "About"** — it is not sufficient just to mention it on a start-up/launch page.
+
+So a line in onboarding does not discharge it. Placing the screen inside Saved or a menu (D-36) satisfies the requirement. Exact wording, per-dataset credits and the shipped dataset versions are in `attribution.md`.
 
 **Storage screen (D-25).** Usage breakdown, a clear action, and a "save scan images" toggle. Users who discover an app consuming 500 MB uninstall it.
 

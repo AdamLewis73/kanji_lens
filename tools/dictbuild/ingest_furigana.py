@@ -30,6 +30,10 @@ from pathlib import Path
 
 import kana
 
+# Unranked words sort last. Stored as a sentinel rather than NULL so a plain
+# ascending index scan orders correctly (V-04).
+_UNRANKED = 9999
+
 
 def _load_readings(db: sqlite3.Connection) -> dict[str, dict]:
     """Per kanji: on readings (katakana), and kun readings indexed both by stem
@@ -100,9 +104,12 @@ def ingest(db: sqlite3.Connection, path: Path) -> Counter:
     stats = Counter()
     readings = _load_readings(db)
 
+    # freq_rank travels with the word id so it can be denormalized into
+    # kanji_in_word — see the idx_kiw_group note in schema.sql.
     words = {
-        (t, r): wid
-        for wid, t, r in db.execute("SELECT id, text, reading FROM word")
+        (t, r): (wid, freq if freq is not None else _UNRANKED)
+        for wid, t, r, freq in db.execute(
+            "SELECT id, text, reading, freq_rank FROM word")
     }
 
     rows = []
@@ -114,12 +121,13 @@ def ingest(db: sqlite3.Connection, path: Path) -> Counter:
             text, reading, spans = parts
             stats["lines"] += 1
 
-            word_id = words.get((text, reading))
-            if word_id is None:
+            entry = words.get((text, reading))
+            if entry is None:
                 # JmdictFurigana is generated from JMdict but not in lockstep
                 # with it; a handful of keys will not exist on our side.
                 stats["no_matching_word"] += 1
                 continue
+            word_id, word_freq = entry
 
             for span in spans.split(";"):
                 index, _, surface = span.partition(":")
@@ -158,12 +166,13 @@ def ingest(db: sqlite3.Connection, path: Path) -> Counter:
                 elif rtype == "kun":
                     group = kana.strip_okurigana(canonical)
 
-                rows.append((char, word_id, pos, surface, canonical, group, rtype))
+                rows.append((char, word_id, pos, surface, canonical, group,
+                             rtype, word_freq))
 
     db.executemany(
         "INSERT OR IGNORE INTO kanji_in_word (kanji_char, word_id, position,"
-        " surface_reading, canonical_reading, reading_group, reading_type)"
-        " VALUES (?, ?, ?, ?, ?, ?, ?)",
+        " surface_reading, canonical_reading, reading_group, reading_type,"
+        " word_freq) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         rows,
     )
     stats["rows"] = db.execute("SELECT count(*) FROM kanji_in_word").fetchone()[0]

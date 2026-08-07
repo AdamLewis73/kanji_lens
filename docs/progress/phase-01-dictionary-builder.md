@@ -1,11 +1,11 @@
 # Phase 1 — Dictionary Builder
 
-**Status:** in progress — build complete and verified; attribution and size review remain
+**Status:** in progress — build complete, verified and attributed; size review remains
 **Updated:** 2026-08-07
 
 ## Current state
 
-`tools/dictbuild/` builds a 117 MB `kanjilens.db` in about 40 seconds: `kanji`, `word`, `word_sense`, `example`, `kanji_in_word`, `meta`. All four parsers are in, plus the `changes` diff and a verification harness. Attribution text and the size review remain.
+`tools/dictbuild/` builds a 126 MB `kanjilens.db` in about 45 seconds: `kanji`, `word`, `word_sense`, `example`, `kanji_in_word`, `meta`. All four parsers are in, plus the `changes` diff and a verification harness. Only the size review remains.
 
 ```
 python fetch.py     # sources from the pinned manifest (D-41)
@@ -83,11 +83,9 @@ Combining adds **1.7 points**, because they are the same corpus — `JMdict_e_ex
 
 ## Next action
 
-The **JMdict parser** — `word`, `word_sense` and `example` in one pass over
-`JMdict_e_examp`. 322,324 expected rows. The traps are all measured and
-documented: honour `re_restr` (11,547 phantom rows without it), attach
-`stagk`/`stagr`-restricted senses only where they apply, merge the 1,492
-colliding keys, and resolve the XML entities the DTD declares.
+**The size review.** 126 MB, which lands in the APK alongside Kuromoji's
+IPADIC and a bundled ML Kit model (D-46). Nothing else in Phase 1 is
+outstanding.
 
 ## Done
 
@@ -104,9 +102,9 @@ colliding keys, and resolve the XML entities the DTD declares.
 - [x] Example sentences ingested from `<sense>` — 58,839 rows — **not rendered** (D-51)
 - [x] `meta` table with build id and per-source header dates (D-41)
 - [x] `changes` table + key-set diff against previous build (D-39, V-19)
-- [ ] Indexes for lookup patterns (exact word, prefix/longest-match, kanji → words)
+- [x] Indexes for lookup patterns — all six verified by EXPLAIN QUERY PLAN
 - [ ] Output size measured and recorded below
-- [ ] Attribution text collected for the in-app licenses screen
+- [x] Attribution text collected — `docs/attribution.md`
 - [x] Verification harness — `verify.py`, **10 of 10 cases pass**
       *(V-05 is a review check with no user DB yet; V-21 and V-23 are Phase 2 UI cases)*
 

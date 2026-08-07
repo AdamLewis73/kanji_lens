@@ -31,6 +31,7 @@ Violating any of these destroys user data or forces a rewrite. Each links to ful
 | Datasets, both schemas, migrations, backup | `docs/data-model.md` |
 | Screens, overlay, typography, interaction | `docs/ux.md` |
 | Expected values for silent-failure bugs (`V-##`) | `docs/verification.md` |
+| Required licence text for the in-app screen | `docs/attribution.md` |
 | Phases, decision checkpoints, deferred backlog | `docs/roadmap.md` |
 | Current state of work in flight | `docs/progress/` |
 
