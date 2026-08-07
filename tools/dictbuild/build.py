@@ -22,6 +22,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+import ingest_jmdict
 import ingest_kanjidic
 
 HERE = Path(__file__).parent
@@ -75,6 +76,7 @@ def write_meta(db: sqlite3.Connection, sources: dict, bid: str) -> None:
 
 STAGES = {
     "kanjidic": (ingest_kanjidic.ingest, "kanjidic2"),
+    "jmdict": (ingest_jmdict.ingest, "jmdict"),
 }
 
 # Counters that mean something is wrong, with the bound at which to say so.
@@ -121,9 +123,14 @@ def main() -> int:
             print(f"    {k:<26} {v:>9,}{_flag(k, v)}")
         print(f"    {'elapsed':<24} {time.monotonic() - started:>9.1f}s")
 
-    size = args.out.stat().st_size
-    print(f"\n{args.out.name}  {size / 1024 / 1024:.1f} MB")
+    # Bulk inserts leave free pages scattered through the file. The dictionary
+    # ships in an APK, so a few megabytes for one command is worth taking.
+    before = args.out.stat().st_size
+    db.execute("VACUUM")
     db.close()
+    after = args.out.stat().st_size
+    print(f"\n{args.out.name}  {after / 1024 / 1024:.1f} MB"
+          f"  (VACUUM reclaimed {(before - after) / 1024 / 1024:.1f} MB)")
     return 0
 
 

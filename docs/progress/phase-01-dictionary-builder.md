@@ -95,13 +95,13 @@ colliding keys, and resolve the XML entities the DTD declares.
 - [x] Source datasets downloaded and inspected; findings recorded here
 - [x] Example-sentence source chosen — `JMdict_e_examp` (D-51)
 - [x] Schema finalized — `schema.sql`, applies cleanly
-- [ ] JMdict parser — entry expansion honouring `re_restr` / `stagk` / `stagr` (V-18)
-- [ ] Frequency derivation rule stated and applied (V-04)
+- [x] JMdict parser — 322,324 words, 388,896 senses; `re_restr`, `stagk`/`stagr` honoured (V-18)
+- [x] Frequency derivation rule stated and applied — nf band, else 49/50, else NULL (V-04)
 - [x] KANJIDIC2 parser — 13,108 kanji, 2,501 ranked (no grade, radical or JLPT: D-50, D-42)
 - [ ] JmdictFurigana ingest → `kanji_in_word`
 - [ ] Kana script normalization tolerant of rendaku and gemination (D-37, V-17)
 - [ ] KanjiVG ingest → stroke paths
-- [ ] Example sentences ingested from `<sense>`, attached per sense — **not rendered** (D-51)
+- [x] Example sentences ingested from `<sense>` — 58,839 rows — **not rendered** (D-51)
 - [x] `meta` table with build id and per-source header dates (D-41)
 - [ ] `changes` table + key-set diff against previous build (D-39, V-19)
 - [ ] Indexes for lookup patterns (exact word, prefix/longest-match, kanji → words)
