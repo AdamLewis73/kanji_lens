@@ -1,11 +1,11 @@
 # Phase 1 — Dictionary Builder
 
-**Status:** in progress — fetch, schema and the KANJIDIC2 stage are built
+**Status:** in progress — three of four parsers done; KanjiVG remains
 **Updated:** 2026-08-07
 
 ## Current state
 
-`tools/dictbuild/` builds a `kanjilens.db` containing the `kanji` and `meta` tables. Three parsers remain: JMdict, JmdictFurigana alignment, and KanjiVG.
+`tools/dictbuild/` builds a 117 MB `kanjilens.db` in about 40 seconds: `kanji`, `word`, `word_sense`, `example`, `kanji_in_word`, `meta`. KanjiVG stroke paths remain, then the `changes` diff and the verification harness.
 
 ```
 python fetch.py     # sources from the pinned manifest (D-41)
@@ -98,8 +98,8 @@ colliding keys, and resolve the XML entities the DTD declares.
 - [x] JMdict parser — 322,324 words, 388,896 senses; `re_restr`, `stagk`/`stagr` honoured (V-18)
 - [x] Frequency derivation rule stated and applied — nf band, else 49/50, else NULL (V-04)
 - [x] KANJIDIC2 parser — 13,108 kanji, 2,501 ranked (no grade, radical or JLPT: D-50, D-42)
-- [ ] JmdictFurigana ingest → `kanji_in_word`
-- [ ] Kana script normalization tolerant of rendaku and gemination (D-37, V-17)
+- [x] JmdictFurigana ingest → `kanji_in_word` — 574,721 rows, 7 unmatched keys
+- [x] Kana script normalization tolerant of rendaku and gemination — **2.09% residue** (D-37, V-17, V-22)
 - [ ] KanjiVG ingest → stroke paths
 - [x] Example sentences ingested from `<sense>` — 58,839 rows — **not rendered** (D-51)
 - [x] `meta` table with build id and per-source header dates (D-41)

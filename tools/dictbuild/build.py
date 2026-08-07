@@ -22,6 +22,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+import ingest_furigana
 import ingest_jmdict
 import ingest_kanjidic
 
@@ -77,6 +78,7 @@ def write_meta(db: sqlite3.Connection, sources: dict, bid: str) -> None:
 STAGES = {
     "kanjidic": (ingest_kanjidic.ingest, "kanjidic2"),
     "jmdict": (ingest_jmdict.ingest, "jmdict"),
+    "furigana": (ingest_furigana.ingest, "jmdictfurigana"),
 }
 
 # Counters that mean something is wrong, with the bound at which to say so.
@@ -85,6 +87,7 @@ STAGES = {
 BOUNDS = {
     "on_not_katakana": 0,            # D-37: on'yomi are katakana, no exceptions
     "kun_katakana_loanword": 100,    # ~60 expected — loanword ateji, see V-24
+    "unmatched_pct": 4,              # D-52 measured 2.25%; V-22 fails above ~4%
 }
 
 

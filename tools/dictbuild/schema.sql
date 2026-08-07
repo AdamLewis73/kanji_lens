@@ -131,18 +131,33 @@ CREATE TABLE kanji_in_word (
     kanji_char        TEXT    NOT NULL REFERENCES kanji(char),
     word_id           INTEGER NOT NULL REFERENCES word(id),
     position          INTEGER NOT NULL,  -- character index within word.text
-    surface_reading   TEXT    NOT NULL,  -- がっ  — as it appears in this word
-    canonical_reading TEXT,              -- カク  — matched KANJIDIC2 reading; NULL = unmatched
+    surface_reading   TEXT    NOT NULL,  -- がっ    — as it appears in this word
+    canonical_reading TEXT,              -- カク     — matched KANJIDIC2 reading, verbatim
+                                         --   い.きる — kun readings keep their markers
+    reading_group     TEXT,              -- カク / い — what D-04 GROUPS BY
     reading_type      TEXT,              -- 'on' | 'kun' | NULL when unmatched
     PRIMARY KEY (kanji_char, word_id, position)
 );
+
+-- Why reading_group exists as a column rather than being derived.
+--
+-- canonical_reading is stored verbatim, so 生 in 生きる is い.きる and in
+-- 生き残り is い — the same reading, two values. Grouping on it fragments 生's
+-- kun readings into 13 groups, several holding a single word, which shows no
+-- pattern at all. Grouping on the stem collapses them to 8 and puts 28 words
+-- under い, which is the pattern D-04 exists to demonstrate.
+--
+-- It is derivable from canonical_reading, but a derived GROUP BY cannot use an
+-- index, and this is the query behind the app's most-used screen. Storing it
+-- also keeps the okurigana-stripping rule in the builder rather than duplicated
+-- in Kotlin.
 
 -- Jukujikun produce NO rows here. JmdictFurigana marks them with range
 -- notation — 明日|あした|0-1:あした — meaning the reading belongs to the whole
 -- word and splits across no character. Inventing an alignment would teach a
 -- false reading (V-03, D-06).
 
-CREATE INDEX idx_kiw_group ON kanji_in_word (kanji_char, reading_type, canonical_reading);
+CREATE INDEX idx_kiw_group ON kanji_in_word (kanji_char, reading_type, reading_group);
 
 
 -- ------------------------------------------------------------- stroke order

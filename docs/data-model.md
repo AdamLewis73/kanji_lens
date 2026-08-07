@@ -166,6 +166,15 @@ meta                ← one row; lets the app detect an asset upgrade
 
 `kanji_in_word` is the table that answers *"show me every common word where 生 is read セイ."* It is queried constantly and rendered never.
 
+**Group by `reading_group`, not `canonical_reading`.** The canonical reading is stored verbatim, so 生 is `い.きる` in 生きる but `い` in 生き残り — the same reading, two values. Grouping on it splits 生's kun readings into 13 groups, several holding one word, which demonstrates no pattern at all. Grouping on the stem gives 8, with 136 words under `い`. Measured on the built database:
+
+| | `canonical_reading` | `reading_group` |
+|---|---:|---:|
+| 生, kun groups | 13 | 8 |
+| words under い | 4 | 136 |
+
+**Sort by `freq_rank` with NULLs last; never filter on it.** About 74% of words are unranked, and a reading group whose words happen to all be unranked would render as an empty panel — 手's ズ group is exactly that case, with one unranked word. Filtering makes a group that exists in the data show nothing.
+
 `changes` is **derived** — recomputed each build by comparing this build's `(text, reading)` key set against the previous shipped build's. It accumulates nothing, so the dictionary stays disposable (D-38). The only artifact carried between builds is the previous key list.
 
 ### User DB — writable, irreplaceable

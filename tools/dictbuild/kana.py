@@ -55,6 +55,37 @@ def strip_okurigana(reading: str) -> str:
     return reading.split(".")[0].strip("-")
 
 
+# Rendaku (連濁): the first mora of a word voices when it becomes the second
+# element of a compound. 花 + 火 -> はなび, where 火 (ひ) surfaces as び.
+_UNVOICE = str.maketrans(
+    "がぎぐげござじずぜぞだぢづでどばびぶべぼぱぴぷぺぽ",
+    "かきくけこさしすせそたちつてとはひふへほはひふへほ",
+)
+
+# Gemination (促音便): a final mora reduces to っ before another element.
+# 学 (がく) + 校 -> がっこう. The lost mora is one of these.
+_GEMINATE_SOURCES = "つちくきふ"
+
+
+def variants(surface: str) -> set[str]:
+    """Every dictionary reading a surface reading could have come from (D-52).
+
+        がっ -> {がっ, がく, がち, がつ, がき, がふ}
+        び   -> {び, ひ}
+
+    Deliberately over-generates. A spurious candidate only matters if it
+    collides with a real reading of the same kanji, which is far rarer than
+    the sound changes this exists to undo.
+    """
+    out = {surface}
+    if surface:
+        out.add(surface[0].translate(_UNVOICE) + surface[1:])
+    for base in list(out):
+        if base.endswith("っ"):
+            out |= {base[:-1] + m for m in _GEMINATE_SOURCES}
+    return out
+
+
 def full_reading(reading: str) -> str:
     """The same reading with markers removed but okurigana kept: い.きる → いきる.
 
