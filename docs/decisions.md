@@ -75,6 +75,10 @@ Scan for the relevant entry rather than reading the whole file.
 | D-44 | "Context" means kanji-in-word, not word-in-sentence | Product |
 | D-45 | Sentence-level comprehension is post-v1 | Product |
 | D-46 | No *persistent* network; one-time downloads permitted (supersedes D-03) | Product |
+| D-47 | Peek sheet shows the word and its meanings — never a reading | UI |
+| D-48 | One word screen per written form; readings are sections within it | UI |
+| D-49 | A single-character token opens the kanji screen directly | UI |
+| D-50 | Kanji screen carries only learner-usable reference; grade and radical dropped | UI |
 
 **Bold** entries are the ones whose violation causes silent data corruption or a forced rewrite. They are also listed in `CLAUDE.md`.
 
@@ -113,6 +117,8 @@ This teaches through pattern recognition rather than assertion, which is arguabl
 Tapping a word opens the **word screen**; tapping a component kanji on that screen opens the **kanji screen**, which has three tabs (Overview / Examples / Stroke Order).
 
 *Why the split:* radicals, stroke order, and on'yomi/kun'yomi readings are all properties of a *single character*, not of a word. 先生 has no radical — 先 has one and 生 has one. An "on'yomi of 先生" is not a meaningful concept. Trying to present per-character data on a word screen produces either nonsense or awkward compromises.
+
+*(Radicals are no longer displayed at all — D-50 — but the argument stands on stroke order and on/kun readings, which remain per-character. D-49 later carved out the one case where the split was redundant: a token that is a single character.)*
 
 Splitting them also mirrors the actual learning motion: *"what does this say?"* → *"why does it say that?"*
 
@@ -225,6 +231,8 @@ Store the **natural key** instead: the word text plus its reading (先生 / せ�
 These are separate vocabulary items and a learner must be able to save, study, and schedule them independently.
 
 *Second benefit:* this makes an open UI question free to answer later. Whether the app shows one word screen with a reading selector, or presents three separate tappable entries, becomes a pure presentation choice changeable at any time — because the underlying data already distinguishes them. Had identity been text alone, splitting later would be impossible: existing saved rows would be ambiguous about which reading the user meant.
+
+*That question was settled by D-48* — one screen per written form, readings as sections inside it. The data model here is unchanged, which is the point: the presentation was decided later and cost nothing.
 
 **D-13 — JmdictFurigana is ingested as an internal index, never rendered.**
 
@@ -390,6 +398,8 @@ Lists are organizational tags. Review sessions may *filter* by list ("review onl
 **D-30 — The peek sheet and the word screen are a single component.**
 Material 3's `ModalBottomSheet` supports partial and full expansion. The partial (peek) state shows word, reading, meaning, a Save action, and a "Full Details" button. Dragging it up — or tapping Full Details — expands the same sheet into the complete word screen.
 
+*(The reading was later removed from the peek state — see D-47. The single-expanding-component claim below is unaffected.)*
+
 *Why:* the original design described a popup plus a separate full-screen detail view. Making them one expanding sheet means the user never loses their place in the scanned image, the gesture is natural and reversible, and the project builds one component instead of two.
 
 **D-31 — Peek only on the scan screen.**
@@ -447,3 +457,71 @@ The rule holds **independently of D-39.** Even with an empty or missing `changes
 Worth stating plainly: a dictionary update **cannot** delete a user's saved word. The two databases are separate (D-09) and the dictionary has no write access to user data. Vanishing is only ever something the app chooses to display — which is why it is a rendering rule.
 
 Paired with D-43, which ensures such a card still has a meaning to show.
+
+**D-47 — The peek sheet shows the word and its meanings. It never shows a reading.**
+
+*Refines D-30*, which described the peek state as showing "word, reading, meaning" — the reading is removed.
+
+> **上手**
+> skillful; proficient · upper part · stage left
+> `[Save]` `[Full Details]`
+
+*Why:* the reading shown would be the tokenizer's guess, and 上手 has five. A learner who knew which one applied would not be scanning it. Presenting a guessed reading as fact teaches something possibly false to precisely the person who cannot detect the error.
+
+**This holds even when the word has only one reading.** Showing せんせい for 先生 would be safe and useful in isolation, but a peek sheet that sometimes carries a reading and sometimes doesn't is unpredictable, and the user has no way to know which case they are looking at. Consistency is worth more than the information.
+
+Readings appear on the word screen (D-48), where every one is shown together and none is asserted as *the* answer.
+
+**D-48 — One word screen per written form. Readings are sections inside it, not separate screens.**
+
+D-12 deliberately left this open: *"whether the app shows one word screen with a reading selector, or presents three separate tappable entries, becomes a pure presentation choice."* This settles it. The data model is unchanged — identity remains `(text, reading)` — only the presentation is decided.
+
+Layout, in order:
+
+```
+上手
+  じょうず  skillful; proficient; good (at); adept
+            彼は文章を書くのが上手であるとわかった。
+            He proved to be a good writer.
+  うわて    upper part
+  かみて    stage left
+Composed of:  上 above, up    手 hand
+```
+
+Each reading is a heading; its meanings sit under it; its example sentences sit under those. **Component chips come last**, below every reading.
+
+*Why chips last:* the examples belong to the meanings and must sit next to them. The chips are reference material — the answer to "what is this made of?", which is a follow-up question to "what does this say?"
+
+*Cost, accepted:* the chips are the only route to the kanji screen (D-05), so burying them adds scrolling to a core drill-down. Judged worth it, because a user who wants the kanji breakdown is already engaged and will scroll; a user who just wants the meaning should not have to scroll past the breakdown to reach it.
+
+*Why one screen rather than three:* the app cannot tell which reading applies (D-44), so presenting three tappable entries asks the user a question they came here to have answered. One screen shows the alternatives side by side and lets the sentence context decide.
+
+**D-49 — A single-character token opens the kanji screen directly, skipping the word screen.**
+
+生 scanned alone is a word — several, in fact — *and* a kanji. Routing it through a word screen produced two screens headed 生, both listing readings, connected by a lone component chip pointing at a screen that looked like the one you were already on.
+
+So: **a single-character token opens the kanji screen**, with the character's word senses shown in the Overview tab under an "As a word" heading, each with its own example sentences. Multi-character words are unaffected — 先生 still opens a word screen and still drills into 生 via a chip, arriving at *the same* kanji screen.
+
+One kanji, one screen, reached from either direction.
+
+*Why not merge the two screen types entirely:* 先生 has no stroke order of its own and no single set of on/kun readings — 先 has one set, 生 has another. A merged screen would need nested per-character tabs inside a bottom sheet, which is exactly the "nonsense or awkward compromises" D-05 exists to avoid.
+
+*Cost:* one branch in navigation — single-character tokens route differently. A few lines of code, and a rule statable in one sentence.
+
+*Note on scope:* the "As a word" section carries example sentences, but the **Examples tab remains words-grouped-by-reading (D-04, unchanged)**. Sentences attach to *words* and appear wherever word data appears. They never attach to a kanji as a character, because no dataset records which sense a kanji contributes inside a compound (D-44).
+
+**D-50 — The kanji screen carries only reference a learner can use. Grade and radical are dropped.**
+
+Removed from the Overview tab:
+
+- **School grade** — the Japanese school year in which the kanji is taught. Real information, but the label means nothing to a non-Japanese learner, and it would need explaining to earn its space.
+- **Classical radical** — the index component used to look kanji up in *paper* dictionaries. Near-zero utility for someone who will never use one. KANJIDIC2 also stores it as a bare number (`100`), so displaying it at all would require sourcing a 214-entry number→glyph table; dropping it removes that task entirely.
+- **JLPT level** — already removed by D-42, but `ux.md` still listed it.
+
+**Stroke count moves to the Stroke Order tab**, where it is self-explanatory and sits beside the thing it describes.
+
+*Why:* "5 strokes · Grade 1 · Radical 100" is three facts, two of which are unreadable to the audience. A reference screen that requires its own key is not reference, it is clutter.
+
+The visual-component question — *what pieces is this kanji built from?* — is the genuinely useful version of "radical", and it is deferred separately in `roadmap.md` (KRADFILE), where the obstacle is component *naming* rather than data.
+
+*Consequence:* Overview would be left holding only meanings and readings, which is thin. D-49 refills it with the "As a word" section for kanji that are also standalone words.

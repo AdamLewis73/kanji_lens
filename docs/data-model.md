@@ -9,7 +9,7 @@ All free. All require attribution — see the bottom of this file.
 | Dataset | Provides | Format | License |
 |---|---|---|---|
 | **JMdict** | Japanese-English word entries: writings, readings, senses, part of speech, frequency tags | Large XML, gzipped | CC BY-SA (EDRDG) |
-| **KANJIDIC2** | Per-kanji data: meanings, on/kun readings, stroke count, school grade, official radical, frequency rank | XML, gzipped — 13,108 kanji | CC BY-SA (EDRDG) |
+| **KANJIDIC2** | Per-kanji data: meanings, on/kun readings, stroke count, frequency rank. *(Also carries grade, radical and a pre-2010 JLPT level — none ingested; D-42, D-50)* | XML, gzipped — 13,108 kanji | CC BY-SA (EDRDG) |
 | **KanjiVG** | Stroke order paths | **One combined XML**, gzipped | CC BY-SA |
 | **JmdictFurigana** | Per-character reading alignment — **internal index only**, D-13 | Text or JSON, one entry per line | Derived, CC BY-SA |
 | **Example sentences** | Japanese sentences with English translations | Three candidate sources — see below | CC-BY |
@@ -68,7 +68,7 @@ Note these live on **writing and reading elements separately** (`ke_pri`, `re_pr
 
 **KANJIDIC2 details that affect the schema.** Confirmed by inspection 2026-08-05.
 
-- **`radical` is a number, not a character.** 生 yields `<rad_value rad_type="classical">100</rad_value>`. Displaying the radical needs a 214-entry number→glyph mapping, which KANJIDIC2 does not contain and we must source separately.
+- **`radical` is a number, not a character.** 生 yields `<rad_value rad_type="classical">100</rad_value>`. Displaying it would need a 214-entry number→glyph mapping KANJIDIC2 does not contain. **Moot for v1** — D-50 drops the radical entirely, which retires this task. Recorded because the finding outlives the decision: anyone reinstating radicals inherits the mapping problem.
 - **`<meaning>` carries several languages.** English glosses are the elements with *no* `m_lang` attribute; French, Spanish and Portuguese sit alongside them. Ingesting indiscriminately fills the app with French.
 - **Kun readings carry positional markers** — `.` separates okurigana (`い.きる`), a trailing `-` marks a prefix (`なま-`), a leading `-` marks a suffix (`-う`). These must be stripped before matching against JmdictFurigana's surface readings.
 - **Stroke count may have several values** — the first is the accepted count, later ones are common miscounts. V-09 compares this against KanjiVG's path count and must name *which*.
@@ -116,9 +116,9 @@ kanji
   kun_readings      hiragana: い(きる), う(まれる), なま — excludes nanori
   stroke_count      the FIRST KANJIDIC2 value; later ones are miscounts
   freq_rank         Mainichi Shimbun rank, top 2,501 only; null otherwise
-  grade             school year taught, if any
-  radical           the official indexing radical
-                    (no jlpt column — D-42)
+                    no jlpt column    (D-42)
+                    no grade column   (D-50)
+                    no radical column (D-50)
 
 word
   id                internal only — NEVER referenced from user data (D-11)

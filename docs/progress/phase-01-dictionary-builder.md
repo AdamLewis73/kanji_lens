@@ -101,16 +101,20 @@ that the JmdictFurigana step depends on).
 
 ## Open questions
 
-- **Which example-sentence source** — `JMdict_e_examp` or Tanaka. See the table above. `JMdict_e_examp` is far less work and sense-linked but thin (~1.1 examples per covered entry, 13.2% coverage); Tanaka is richer but needs a custom parser for its `B:` line format. Raw Tatoeba is ruled out.
+- **Which example-sentence source — the blocking decision for the schema.** `JMdict_e_examp` or Tanaka; see the table above. `JMdict_e_examp` is less work and sense-linked but thin (13.2% coverage, ~1.1 examples per covered entry); Tanaka carries hundreds per common word but needs a parser for its `B:` line format. Raw Tatoeba is ruled out.
+
+  D-48 and D-49 both increased the amount of screen that wants sentences: the word screen now shows examples under *every* reading, and single-character kanji screens show them under every standalone-word sense. That strengthens the case for Tanaka, since `JMdict_e_examp` supplies roughly one sentence per word total.
 - **Do the compressed source files go into git?** Now answerable — all seven total **51.4 MB**, and the shipped set is one example source not three, so realistically **28–39 MB**. Comfortably under GitHub's 50 MB per-file warning, and refreshed only once or twice a year (D-41). Leaning yes. Note if committing, prefer JmdictFurigana's `.tar.gz` asset (5.2 MB) over the plain `.txt` (11.6 MB).
-- **Display policy for `&ok;` readings.** 上手 has じょうて and じょうしゅ marked out-dated. Ingest for lookup but hide from learners? Probably, but it needs stating — showing them as ordinary readings would teach kana nobody uses.
-- **Where does the radical number→character mapping come from?** KANJIDIC2 gives radical `100`, not 生's radical glyph. The 214 classical radicals are a small fixed table, but it has to come from somewhere with clear licensing.
+- **Display policy for `&ok;` readings.** 上手 has じょうて and じょうしゅ marked out-dated. Under D-48 every reading is a section on the word screen, so obsolete ones would appear alongside じょうず unless filtered. Ingest for lookup but hide from learners? Probably — but it needs stating, and D-48 made it more visible than it was.
+- **Policy for sensitive senses.** JMdict is a general dictionary. 生 (なま) carries a third sense referring to unprotected sex; it is legitimate lexicography and correctly tagged, but a learning app pointed at menus by beginners wants a deliberate position rather than a screenshot-driven one.
 - **Example volume.** Largely moot if `JMdict_e_examp` wins — there is roughly one example per word, so "cap at 3–5" never binds. Becomes a real question again if Tanaka is chosen.
 - **Final DB size.** Needs measuring. Combined with Kuromoji's IPADIC this drives APK size — and ML Kit OCR is bundled by preference (D-46), which adds to it. If it's a problem, consider trimming rare JMdict entries or dropping low-frequency examples.
 - **FTS5 or plain indexes?** Longest-match prefix lookup (D-07) may be served fine by a plain index on word text. Measure before adding FTS complexity.
 - **Does the frequency derivation rule survive contact with the data?** `data-model.md` proposes best `nf##` across writing and reading elements, falling back to `ichi1`/`news1`/`spec1`. Confirm against real entries.
 
-*Resolved since last update:* dictionary versioning (now the `meta` table); JLPT handling (D-42); refresh cadence (D-41); merge/removal handling (D-39, D-40, D-43).
+*Resolved since last update:* dictionary versioning (now the `meta` table); JLPT handling (D-42); refresh cadence (D-41); merge/removal handling (D-39, D-40, D-43); **the radical number→glyph mapping, retired by D-50 dropping radicals entirely** — a UX simplification that removed a data-sourcing task.
+
+*Parked, not blocking Phase 1:* ambiguity chips (D-07 records the current position; the alternative is always taking the longest match) and word-screen formatting under D-48.
 
 ## Notes
 

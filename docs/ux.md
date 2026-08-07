@@ -23,26 +23,51 @@ Scan
  └─ live preview + "text detected" indicator + large shutter
      └─ frozen image + overlay
          └─ tap word → PEEK SHEET
-                        word · furigana · reading · meaning
+                        word · meanings only — NO reading (D-47)
                         [Save]  [Full Details]
-             └─ expand → WORD SCREEN            (same sheet, D-30)
-                          reading(s), meanings + part of speech,
-                          component kanji chips, example sentences
-                 └─ tap chip → KANJI SCREEN     (in place, back arrow, D-32)
-                                Overview | Examples | Stroke Order
+             │
+             ├─ expand, MULTI-character → WORD SCREEN      (same sheet, D-30)
+             │              per reading:  reading
+             │                            meanings + part of speech
+             │                            example sentences
+             │              component kanji chips LAST      (D-48)
+             │    └─ tap chip → KANJI SCREEN  (in place, back arrow, D-32)
+             │
+             └─ expand, SINGLE character → KANJI SCREEN directly (D-49)
+                            Overview | Examples | Stroke Order
 ```
+
+Both routes reach **the same** kanji screen. One kanji, one screen.
 
 ### Word screen — no tabs
 
-Reading(s), meanings with part of speech, **component chips showing meanings only** (D-06), and examples of the word's own usage variations.
+**One screen per written form** (D-48). Every reading appears as a section, because the app cannot tell which one applies (D-44) and showing three tappable entries would ask the user the question they came to have answered.
+
+```
+上手
+  じょうず  skillful; proficient; good (at); adept
+            彼は文章を書くのが上手であるとわかった。
+            He proved to be a good writer.
+  うわて    upper part
+  かみて    stage left
+Composed of:  上 above, up    手 hand
+```
+
+Reading → meanings → examples, repeated per reading. **Component chips come last**, below every reading, showing meanings only (D-06). Examples belong beside the meanings they illustrate; the chips answer a follow-up question.
+
+Formatting this so meanings and examples stay visually distinct at a glance is still open — a Phase 2 design task, not a data one.
 
 ### Kanji screen — three tabs
 
 | Tab | Content |
 |---|---|
-| **Overview** | Meanings, on'yomi / kun'yomi, stroke count, JLPT level, official radical |
-| **Examples** | Other words containing this kanji, grouped by reading, frequency-sorted (D-04) |
-| **Stroke Order** | KanjiVG animation — paths drawn sequentially in correct stroke order |
+| **Overview** | Meanings, on'yomi / kun'yomi, and — when the kanji is also a standalone word — an **As a word** section with its senses and example sentences (D-49) |
+| **Examples** | Other **words** containing this kanji, grouped by reading, frequency-sorted (D-04) |
+| **Stroke Order** | KanjiVG animation — paths drawn sequentially — plus the stroke count |
+
+**Grade, classical radical and JLPT level are deliberately absent** (D-50, D-42). "5 strokes · Grade 1 · Radical 100" is three facts, two of which mean nothing to a non-Japanese learner. Stroke count moved to the Stroke Order tab, where it needs no explanation.
+
+Note the **Examples tab shows words, never sentences.** Sentences attach to *words* and appear wherever word data does — including the Overview tab's "As a word" section. They can never attach to a kanji as a character, because no dataset records which sense a kanji contributes inside a compound (D-44).
 
 The Examples tab expresses the same idea at both levels: **show every distinct way this thing is used.** For a kanji that means its different readings; for a word it means its sense variations.
 
