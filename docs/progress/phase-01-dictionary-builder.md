@@ -1,24 +1,23 @@
 # Phase 1 — Dictionary Builder
 
-**Status:** not started (design settled, no code)
-**Updated:** 2026-08-05
+**Status:** in progress — fetch, schema and the KANJIDIC2 stage are built
+**Updated:** 2026-08-07
 
 ## Current state
 
-Nothing built. Repo contains documentation only.
+`tools/dictbuild/` builds a `kanjilens.db` containing the `kanji` and `meta` tables. Three parsers remain: JMdict, JmdictFurigana alignment, and KanjiVG.
 
-The goal of this phase is a desktop Python script that parses the source datasets into a single SQLite file (`kanjilens.db`) that ships as an Android asset. No Android work happens in this phase.
+```
+python fetch.py     # sources from the pinned manifest (D-41)
+python build.py     # kanjilens.db from schema.sql + the ingest stages
+```
 
-A long design session on 2026-08-05 settled the source-acquisition strategy, the change-tracking mechanism, and several dataset facts that were previously assumed. It produced D-38 through D-46 and V-17 through V-20. Nothing below should be re-litigated without reading those.
+Design decisions from the sessions on 2026-08-05/06 are D-38 through D-55, with verification cases V-17 through V-24. Nothing below should be re-litigated without reading those.
 
-### Confirmed by research, not yet by inspection
-
-URLs, formats, licensing and versioning are confirmed (`data-model.md`). **Internal element structure is not.** That's the next task and the reason no parser exists yet.
-
-Two findings that changed the plan:
+### Findings that changed the plan
 
 - **KanjiVG ships one combined XML** (~3.6 MB gzipped), not ~11,000 individual SVGs.
-- **Three of five sources have no version history** — JMdict is regenerated daily at a fixed URL, and a past version cannot be requested. Their generation date is baked into the file header, so checksums change daily even when content doesn't.
+- **Three of the four sources have no version history** — JMdict is regenerated daily at a fixed URL, and a past version cannot be requested. That is why D-55 commits them.
 
 ## Inspection findings — 2026-08-05
 
@@ -35,16 +34,17 @@ KANJIDIC2 both generated 2026-08-06.
 | `ke_pri` / `re_pri` | 56,933 / 62,678 | **Only ~26% of entries carry any priority tag** |
 
 - **Multiple entries share one writing.** 上手 is *two* entries: `1353320` (じょうず, じょうて`ok`, じょうしゅ`ok` — "skillful") and `1580400` (うわて, かみて — "upper part"). Longest-match lookup must expect several entries per key.
-- **`&ok;` marks out-dated kana.** じょうて and じょうしゅ are real JMdict readings nobody uses. Needs a display policy — ingest for lookup, hide from learners.
+- **`&ok;` marks out-dated kana.** じょうて and じょうしゅ are real JMdict readings nobody uses. Kept and marked archaic rather than hidden (D-53) — a temple inscription is exactly where they are needed.
 - **`&gikun;` flags irregular readings.** 明日's あした and あす both carry it; みょうにち does not. JMdict marks jukujikun for us — V-03 doesn't have to infer it.
 - 明日 also carries `<stagr>あす</stagr>` on its "near future" sense, so both restriction mechanisms appear in one familiar entry.
 - Part-of-speech and info values are **XML entities** (`&n;`, `&adj-na;`, `&ok;`) declared in the internal DTD subset. The parser must resolve them.
 - **Frequency covers a minority of entries.** Unranked words need a defined sort position (last), or V-04's ordering will be arbitrary for three-quarters of the dictionary.
 
-### KANJIDIC2 — two traps not previously known
+### KANJIDIC2 — three traps not previously known
 
-- **`radical` is a number, not a character.** 生 gives `<rad_value rad_type="classical">100</rad_value>`. Rendering the radical requires a 214-entry number→character mapping we must supply ourselves; KANJIDIC2 does not contain one.
+- **`radical` is a number, not a character.** 生 gives `<rad_value rad_type="classical">100</rad_value>`. Rendering it would need a 214-entry number→glyph mapping KANJIDIC2 does not contain. Moot — D-50 drops radicals, which retired the task.
 - **`<meaning>` includes other languages.** 生 carries English, French, Spanish and Portuguese glosses. English ones are the elements *without* an `m_lang` attribute. Ingesting all of them would silently fill the app with French.
+- **~60 kun'yomi are legitimately katakana** — found by an assertion during ingest, not by reading. Japanese writes loanwords in katakana, and KANJIDIC2 preserves that for unit ateji (粁 キロメートル, 吋 インチ) and chemical elements (鋁 アルミニウム). Two are common kanji: 志 (freq 823) reads both こころざし and シリング; 粉 (1,484) reads こな and デシメートル. Forcing kun'yomi to hiragana would corrupt these. See D-37's exception note and V-24.
 - Confirmed as expected: `<freq>` present (生 = 29), on'yomi in katakana, kun'yomi with `.` okurigana markers plus `-` for prefix/suffix position (`なま-`, `-う`), `<nanori>` in separate elements, `<jlpt>4</jlpt>` present but pre-2010 (excluded, D-42).
 
 ### JmdictFurigana — format confirmed, and V-17 confirmed by data
@@ -83,22 +83,26 @@ Combining adds **1.7 points**, because they are the same corpus — `JMdict_e_ex
 
 ## Next action
 
-Write the schema DDL, then begin the **KANJIDIC2 parser** — smallest, self-contained, and it supplies the reading lists the JmdictFurigana step depends on.
+The **JMdict parser** — `word`, `word_sense` and `example` in one pass over
+`JMdict_e_examp`. 322,324 expected rows. The traps are all measured and
+documented: honour `re_restr` (11,547 phantom rows without it), attach
+`stagk`/`stagr`-restricted senses only where they apply, merge the 1,492
+colliding keys, and resolve the XML entities the DTD declares.
 
 ## Done
 
-- [ ] `tools/dictbuild/` skeleton and fetch script with pinned manifest (D-41)
+- [x] `tools/dictbuild/` skeleton and fetch script with pinned manifest (D-41)
 - [x] Source datasets downloaded and inspected; findings recorded here
 - [x] Example-sentence source chosen — `JMdict_e_examp` (D-51)
-- [ ] Schema finalized
+- [x] Schema finalized — `schema.sql`, applies cleanly
 - [ ] JMdict parser — entry expansion honouring `re_restr` / `stagk` / `stagr` (V-18)
 - [ ] Frequency derivation rule stated and applied (V-04)
-- [ ] KANJIDIC2 parser (meanings, on/kun, stroke count, grade, radical, freq rank; **no JLPT**, D-42)
+- [x] KANJIDIC2 parser — 13,108 kanji, 2,501 ranked (no grade, radical or JLPT: D-50, D-42)
 - [ ] JmdictFurigana ingest → `kanji_in_word`
 - [ ] Kana script normalization tolerant of rendaku and gemination (D-37, V-17)
 - [ ] KanjiVG ingest → stroke paths
 - [ ] Example sentences ingested from `<sense>`, attached per sense — **not rendered** (D-51)
-- [ ] `meta` table with build id and per-source header dates (D-41)
+- [x] `meta` table with build id and per-source header dates (D-41)
 - [ ] `changes` table + key-set diff against previous build (D-39, V-19)
 - [ ] Indexes for lookup patterns (exact word, prefix/longest-match, kanji → words)
 - [ ] Output size measured and recorded below

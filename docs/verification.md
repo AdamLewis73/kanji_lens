@@ -33,6 +33,8 @@ Query the kanji 生 and check the script of each reading group:
 
 Fails silently as `せい` / `しょう` if normalization is skipped.
 
+**"kun'yomi are hiragana" has ~60 real exceptions** — see V-24. Assert this case on 生, not as a blanket rule over the whole table.
+
 ### V-02 · Words with multiple readings survive ingest (D-12)
 
 The trap: a naive "one row per word text" schema keeps whichever reading it encountered last and silently discards the others.
@@ -104,6 +106,23 @@ Failure is silent and plausible: a word that reads correctly but carries a meani
 Not testable against a single build. Build the dictionary twice from different source snapshots, or synthesize a retirement by removing one entry from a copy of the source.
 
 Expect: the removed `(text, reading)` appears in `changes` with the build id, and with a replacement key where JMdict recorded one. An empty `changes` table on a build where keys genuinely disappeared means the diff never ran — and nothing downstream will complain, because a missing warning looks exactly like no warning being needed.
+
+### V-24 · Loanword kun'yomi keep their katakana (D-37)
+
+The trap is the *opposite* of V-01's. Having established that on'yomi must be katakana, the tempting next step is to force kun'yomi to hiragana. That corrupts about 60 readings, and nothing errors.
+
+Japanese writes loanwords in katakana, and KANJIDIC2 preserves that where a kanji's word-level reading is a loanword:
+
+| Kanji | Frequency | Expected kun readings |
+|---|---:|---|
+| 志 | 823 | こころざ.す, こころざし, **シリング** |
+| 粉 | 1,484 | こ, こな, **デシメートル** |
+| 粁 | — | **キロメートル** |
+| 吋 | — | **インチ** |
+
+Check 志 specifically: it is a common kanji, so the damage is visible to ordinary users rather than confined to obscure characters. Rendering しりんぐ is wrong — nobody writes it that way.
+
+Expect **about 60** katakana kun readings across the whole table. The build reports the count and flags above 100 (`kun_katakana_loanword`). Zero means something is converting them; a large jump means the source changed.
 
 ### V-22 · Reading-alignment residue stays within bounds (D-52, V-17)
 

@@ -558,6 +558,12 @@ Since JmdictFurigana is what powers the grouping (D-13), its hiragana readings m
 
 *Scope note:* this governs **reading labels only.** Furigana displayed over words stays hiragana in all cases (D-14) — that is a separate convention and the two must not be conflated.
 
+**Exception found during ingest: ~60 kun'yomi are legitimately katakana.** Japanese writes loanwords in katakana, and KANJIDIC2 preserves that for kanji whose word-level reading is a loanword — Meiji-era unit ateji (粁 キロメートル, 吋 インチ, 瓩 キログラム) and chemical elements (鋁 アルミニウム, 鉑 プラチナ).
+
+This is not confined to obscure characters. 志 (frequency rank 823) reads both こころざし *ambition* and シリング *shilling*; 粉 (1,484) reads こな *powder* and デシメートル.
+
+So the rule is **preserve KANJIDIC2's script for kun readings**, not force them to hiragana. Converting would render 志's reading as しりんぐ, which nobody writes. The conversion this decision does require runs the other way — JmdictFurigana's hiragana to katakana where a reading is an on'yomi. See V-24.
+
 **D-40 — A saved item that cannot be resolved is always rendered. It never disappears.**
 
 If the dictionary cannot resolve a saved item's `(text, reading)`, the app shows the card anyway — with the text, the reading, the review history, and an explanation — rather than omitting it from the list.
