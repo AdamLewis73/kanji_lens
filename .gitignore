@@ -1,11 +1,8 @@
-# Downloaded dictionary sources.
-#
-# PROVISIONAL. Whether the compressed sources get committed is still an open
-# question — see docs/progress/phase-01-dictionary-builder.md. Leaning toward
-# committing them, because three of the five have no version history and a past
-# version cannot be re-fetched. Ignored until real sizes are known, since adding
-# files to git later is trivial and removing them is not.
-tools/dictbuild/data/raw/
+# Downloaded dictionary sources ARE committed — see D-41 and the phase-01
+# progress notes. Three of the four have no version history and a past version
+# cannot be re-fetched, so committing them is what makes a shipped build
+# reproducible and a fresh clone self-contained. ~30 MB, refreshed once or
+# twice a year.
 *.part
 
 # Build output
