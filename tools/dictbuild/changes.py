@@ -27,14 +27,21 @@ from pathlib import Path
 
 def write_keys(db: sqlite3.Connection, path: Path) -> int:
     """Emit this build's key list. ent_seq travels with it because it is how a
-    retired key's successor gets found — see _successor()."""
+    retired key's successor gets found — see _successor().
+
+    Written with `mtime=0` and through a fileobj, so the gzip header carries
+    neither a timestamp nor the source filename. Without that, two builds of
+    identical content produce different BYTES — and since this file is committed
+    as the baseline, every rebuild would show a spurious 3.5 MB diff and the
+    determinism check (D-58, V-25) could never compare the compressed form.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     n = 0
-    with gzip.open(path, "wt", encoding="utf-8", newline="\n") as fh:
+    with open(path, "wb") as raw, gzip.GzipFile(fileobj=raw, mode="wb", mtime=0) as gz:
         for text, reading, ent_seq in db.execute(
             "SELECT text, reading, ent_seq FROM word ORDER BY text, reading"
         ):
-            fh.write(f"{text}\t{reading}\t{ent_seq}\n")
+            gz.write(f"{text}\t{reading}\t{ent_seq}\n".encode())
             n += 1
     return n
 

@@ -7,6 +7,7 @@ Desktop Python, stdlib only, no install step. Contains no Android code and needs
 ## Usage
 
 ```bash
+python test_dictbuild.py   # unit tests, ~3 ms, no dependencies
 python fetch.py            # download sources listed in sources.json
 python fetch.py --list     # show the manifest without downloading
 python fetch.py --force    # re-download even if already present

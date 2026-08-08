@@ -12,6 +12,8 @@ A crash is self-reporting. These aren't.
 
 Each case names the decision it protects, so grepping this file for a decision ID (`D-12`) finds every case that assumes it. Keeping those in sync is part of the supersede procedure documented at the top of `decisions.md` — a stale verification case is worse than none, because it asserts something the project no longer believes.
 
+**These are not unit tests, and both exist.** `tools/dictbuild/test_dictbuild.py` asks whether the *code* is right — pure functions, edge cases, milliseconds. This file asks whether the *data* is right, and `verify.py` runs it against a built database. They catch different things: if a rendaku mapping were wrong, 学校 and 花火 might still resolve while thousands of other words broke, and every case here would pass.
+
 **Readings below should be confirmed against KANJIDIC2 during Phase 1 rather than trusted from this file** — this document records the *shape* of the expected answer and the trap being tested, not an authoritative reading list.
 
 ---
