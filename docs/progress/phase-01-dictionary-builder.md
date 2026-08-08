@@ -112,10 +112,14 @@ extracts the asset.
 ## Open questions
 
 - **Verb-stem conjugation in the reading matcher.** Optional. D-52's normalizer leaves 2.25% unmatched; roughly half of that is stem forms (引き, 言い, 売り, 買い) that a conjugation rule would catch, taking the residue to about 1.5%. Diminishing returns — decide after seeing whether the Examples tab looks thin anywhere.
-*(Example volume is no longer a question. `JMdict_e_examp` carries roughly one sentence per sense — only 380 senses have more than one — so a "cap at 3–5" would never bind. Nothing to rank or select.)*
-- **Final DB size.** Needs measuring. Combined with Kuromoji's IPADIC this drives APK size — and ML Kit OCR is bundled by preference (D-46), which adds to it. If it's a problem, consider trimming rare JMdict entries or dropping low-frequency examples.
-- **FTS5 or plain indexes?** Longest-match prefix lookup (D-07) may be served fine by a plain index on word text. Measure before adding FTS complexity.
-- **Does the frequency derivation rule survive contact with the data?** `data-model.md` proposes best `nf##` across writing and reading elements, falling back to `ichi1`/`news1`/`spec1`. Confirm against real entries.
+- **Trimming vocabulary, if the device footprint ever matters more than coverage.** 86% of words carry no frequency tag; keeping only tagged ones would drop 278,012 words, 315,281 senses and 503,512 alignments. Rejected for now — it is one-way once users have saved words (D-11) and risks "not found" on legitimate text. Revisit only with a real reason.
+
+*Closed by the size review and the build:*
+
+- **Final DB size** — 99.7 MB on disk, 30.3 MB gzipped (D-56).
+- **FTS5 or plain indexes** — plain. Longest-match is N indexed equality lookups on substrings, not a text search; the `UNIQUE (text, reading)` constraint already serves lookups by text alone. FTS5 buys nothing (D-57, and the note in `schema.sql`).
+- **Does the frequency rule survive the data** — yes. 学校/生活/生産 land at nf01, 先生 at nf02, 誕生日 at 49 (common but unbanded). V-04 passes.
+- **Example volume** — moot. `JMdict_e_examp` carries roughly one sentence per sense; only 380 senses have more than one, so a cap would never bind.
 
 *Resolved since last update:* dictionary versioning (now the `meta` table); JLPT handling (D-42); refresh cadence (D-41); merge/removal handling (D-39, D-40, D-43); **the radical number→glyph mapping, retired by D-50 dropping radicals entirely** — a UX simplification that removed a data-sourcing task.
 

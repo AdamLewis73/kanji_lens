@@ -12,7 +12,7 @@ By the end of Phase 3, roughly 70% of the app exists and is fully testable witho
 
 | # | Phase | Status | Output |
 |---|---|---|---|
-| 1 | Dictionary builder (desktop Python) | Not started | `kanjilens.db` asset |
+| 1 | Dictionary builder (desktop Python) | **Complete** | `kanjilens.db` — 99.7 MB, 30.3 MB gzipped |
 | 2 | Android app, text input only | Not started | Paste 先生 → word + kanji screens |
 | 3 | Stroke order tab | Not started | KanjiVG animation |
 | 4 | CameraX + ML Kit | Not started | Raw recognized text into the Phase 2 pipeline |
@@ -40,6 +40,8 @@ Three things are known to be harder than they look:
 ### Phase 2 — Android app with a text box
 
 **No camera at all.** Paste `先生と生産` into a text field, tokenize with Kuromoji, look up in Room, and render the word screen and kanji screen. This is where the app's actual value gets proven, and it's fully testable without any of the camera complexity.
+
+**First job: get the dictionary in.** `kanjilens.db` is a build output and gitignored, so a fresh clone doesn't have one — build it and copy it into the app's assets. Steps are in `tools/dictbuild/README.md`. Worth automating as a Gradle task early, because a stale asset yields an app that looks fine and serves old data.
 
 **Decide here: do example sentences get rendered? (D-51)** They are already in the dictionary — ingested in Phase 1, shown nowhere. Coverage is 41.4% of common senses, with a ceiling around 43% because the corpus doesn't attest the rest.
 

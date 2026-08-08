@@ -67,5 +67,8 @@ The project owner has asked to be **stopped before decisions that are expensive 
 
 ## Status
 
-**Current phase:** Phase 1 — Dictionary Builder (not started)
-**Nothing is implemented yet.** The repository contains documentation only.
+**Phase 1 — Dictionary Builder: complete.** `tools/dictbuild/` builds a 99.7 MB `kanjilens.db` (30.3 MB gzipped) from four pinned sources in ~45 seconds. `verify.py` passes 10 of 10 verification cases.
+
+**Current phase:** Phase 2 — Android app, text input only. Not started; no Kotlin exists yet.
+
+Phase 2 has three decision checkpoints, the first at its **first commit** (module structure, `:domain`/`:data` free of `android.*`). See the checkpoint table in `docs/roadmap.md` and raise them before writing code.

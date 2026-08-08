@@ -24,6 +24,23 @@ Note the checksum changes every day whether or not any content did, because the 
 
 The remaining two sources (KanjiVG, JmdictFurigana) are immutable GitHub release assets, pinned by tag and verified against the publisher's own SHA-256.
 
+## Getting the database into the Android app
+
+`data/build/kanjilens.db` is **gitignored** — it is a build output, and committing a 100 MB binary that changes on every rebuild is exactly what D-55 avoided for the sources. So a fresh clone has the sources but not the database.
+
+Phase 2 needs it as an app asset:
+
+```bash
+python fetch.py                      # only if data/raw/ is empty
+python build.py
+python verify.py                     # 10 of 10 must pass
+cp data/build/kanjilens.db ../../app/src/main/assets/
+```
+
+Room loads it with `createFromAsset`, which copies it out to internal storage on first launch — so the device holds both the compressed copy inside the APK and the extracted one, roughly 130 MB total.
+
+**This step is not automated yet.** When the Gradle project exists, wiring it as a build task is the obvious next move; until then it is a manual copy and worth remembering, because a stale asset produces an app that looks fine and serves old data.
+
 ## Refresh policy (D-41)
 
 At defined events only: phase start, before first release, and once per release. Never mid-phase.
