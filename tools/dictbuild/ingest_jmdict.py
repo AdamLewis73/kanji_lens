@@ -1,6 +1,6 @@
 """Parse JMdict into the `word`, `word_sense` and `example` tables.
 
-The big stage: 218,329 entries expanding to 322,324 (text, reading) rows.
+The big stage: 218,329 entries expanding to 322,323 (text, reading) rows.
 
 A JMdict entry is NOT a word. One <entry> holds several kanji writings and
 several readings, with explicit restrictions between them, and expanding it
@@ -13,8 +13,8 @@ Four things this file exists to get right:
   * stagk / stagr          — which SENSES apply to which of the expanded rows
   * ke_pri / re_pri        — frequency, which lives on writings and readings
                              separately rather than on the entry
-  * colliding keys         — 1,492 (text, reading) pairs come from more than
-                             one entry and are merged into one row
+  * colliding keys         — 1,659 merges, where a (text, reading) pair is
+                             produced by more than one entry
 """
 
 from __future__ import annotations

@@ -352,12 +352,12 @@ Recorded so this is not re-litigated. All figures are for **common** entries —
 
 JmdictFurigana gives the kana a kanji carries **as it appears** in a word, which routinely differs from its dictionary reading. Matching the two is the hardest correctness problem in Phase 1 (V-17).
 
-Measured over 574,731 spans:
+Measured over 574,721 spans:
 
 | Matcher | Unmatched |
 |---|---:|
 | Exact comparison only | **8.00%** |
-| Plus rendaku, gemination and okurigana | **2.25%** |
+| Plus rendaku, gemination and okurigana | **2.09%** |
 
 Three normalizations, roughly twenty lines between them:
 
@@ -367,7 +367,7 @@ Three normalizations, roughly twenty lines between them:
 
 *Why not simply drop unmatched spans*, which was proposed and is superficially attractive at 8%: that 8% is **not a random sample**. Rendaku and gemination happen in established, frequent compounds — words erode phonetically *because* they are common. Dropping them removes 仕事 from 事's こと group, 出口 from 口's くち group, and 学校 from 学's カク group, leaving the Examples tab showing rarer words in their place. That is precisely the failure V-04 exists to prevent.
 
-*What remains at 2.25%* is two categories. **Verb stem forms** — 引き, 言い, 売り, 買い — which a conjugation rule would mostly catch, taking the residue to roughly 1.5%. And **genuinely irregular readings** KANJIDIC2 does not record at all (文 → も in 文字, 其 → そ), which no rule can derive.
+*What remains at 2.09%* is two categories. **Verb stem forms** — 引き, 言い, 売り, 買い — which a conjugation rule would mostly catch, taking the residue to roughly 1.5%. And **genuinely irregular readings** KANJIDIC2 does not record at all (文 → も in 文字, 其 → そ), which no rule can derive.
 
 That irreducible remainder is handled exactly as the drop-them proposal suggested: `canonical_reading` and `reading_type` are **NULL**, so the span joins no reading group and never appears on the Examples tab. The idea was right; it was only wrong applied to the whole 8% rather than the 2% that is actually irreducible.
 

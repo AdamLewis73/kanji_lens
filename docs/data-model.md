@@ -11,9 +11,10 @@ All free. All require attribution — see the bottom of this file.
 | **JMdict** (`_examp` variant) | Word entries: writings, readings, senses, part of speech, frequency tags — **plus example sentences inside each `<sense>`** (D-51) | Large XML, gzipped | CC BY-SA (EDRDG) |
 | **KANJIDIC2** | Per-kanji data: meanings, on/kun readings, stroke count, frequency rank. *(Also carries grade, radical and a pre-2010 JLPT level — none ingested; D-42, D-50)* | XML, gzipped — 13,108 kanji | CC BY-SA (EDRDG) |
 | **KanjiVG** | Stroke order paths | **One combined XML**, gzipped | CC BY-SA |
-| **JmdictFurigana** | Per-character reading alignment — **internal index only**, D-13 | Text or JSON, one entry per line | Derived, CC BY-SA |
-| **Example sentences** | Japanese sentences with English translations | Three candidate sources — see below | CC-BY |
+| **JmdictFurigana** | Per-character reading alignment — **internal index only**, D-13 | Text, one entry per line | Derived, CC BY-SA |
 | **KRADFILE** | Kanji → its visual components | Text | CC BY-SA (EDRDG) — **deferred**, see `roadmap.md` |
+
+Example sentences are **not** a separate source: D-51 folded them into the JMdict variant above, where they nest inside each `<sense>`.
 
 ### Where they come from
 
@@ -30,10 +31,10 @@ Confirmed August 2026. Acquisition and refresh policy is D-41.
 
 Two practical consequences, both feeding D-41:
 
-- **Three of five sources have no version history.** A past version of JMdict cannot be requested. Reproducing an old build requires having kept the file.
+- **Three of the four sources have no version history.** A past version of JMdict cannot be requested. Reproducing an old build requires having kept the file — which is why D-55 commits them.
 - **The generation date is written into each EDRDG file's header**, so the checksum changes daily whether or not any content did. Pin by header date; a checksum detects difference, not meaningful change.
 
-**Internal file structure is still unverified.** URLs, formats, licensing and versioning are confirmed; the actual element shapes are not. Phase 1's first task remains downloading and examining the real files before writing parsing code.
+**All four have been parsed.** Everything below describes structure confirmed against the real files rather than documentation, and the findings that contradicted the documentation are recorded in `progress/phase-01-dictionary-builder.md`.
 
 ### Example sentences — settled by D-51
 
@@ -63,7 +64,16 @@ Expanding an entry into `(text, reading)` rows by naive cross-product therefore 
 
 **JMdict frequency tags.** Entries carry priority markers (`nf01`–`nf48`, `news1`, `ichi1`, `spec1`) indicating how common a word is. These are **not optional** — they're what makes example lists useful. An unranked list of words containing 生 surfaces obscure vocabulary first and makes the app feel broken.
 
-Note these live on **writing and reading elements separately** (`ke_pri`, `re_pri`), not on the entry, so `word_frequency` needs a stated derivation rule rather than a guess. Proposed: take the best `nf##` band available across the writing and reading elements, falling back to `ichi1` / `news1` / `spec1`. V-04 depends on whatever rule is chosen.
+Note these live on **writing and reading elements separately** (`ke_pri`, `re_pri`), not on the entry, so the rule combines both. As implemented in `ingest_jmdict.freq_rank()`:
+
+| Signal | Stored rank |
+|---|---|
+| Best `nf01`–`nf48` band across the writing and reading | 1–48 |
+| Otherwise `ichi1` / `news1` / `spec1` / `gai1` | 49 |
+| Otherwise `ichi2` / `news2` / `spec2` / `gai2` | 50 |
+| No priority marker at all | NULL — **sorts last** |
+
+Confirmed against the data: 学校 / 生活 / 生産 land at nf01, 先生 at nf02, 誕生日 at 49. Only **44,311 of 322,323 words** carry any marker, so the NULL case is the common one and must sort last, not first (V-04).
 
 **KANJIDIC2 details that affect the schema.** Confirmed by inspection 2026-08-05.
 
@@ -90,14 +100,14 @@ Format is `text|reading|index:kana;index:kana`, confirmed by inspection:
 
 Two things fall out of this. **Range notation marks jukujikun explicitly**, so V-03 is a matter of honouring the format rather than detecting the case. And **surface kana routinely differ from dictionary readings**, which is the fuzzy-matching problem in V-17.
 
-Measured over 574,731 spans, the matcher's residue (D-52):
+Measured over 574,721 spans, the matcher's residue (D-52):
 
 | Matching | Unmatched |
 |---|---:|
 | Exact comparison only | 8.00% |
-| Plus rendaku, gemination, okurigana | **2.25%** |
+| Plus rendaku, gemination, okurigana | **2.09%** |
 
-The 8% is not a random sample — sound changes cluster in *frequent* compounds, because common words erode phonetically. Dropping them would cost 仕事, 出口, 学校 and 一生. The 2.25% that remains is verb stem forms (引き, 言い) and readings KANJIDIC2 simply doesn't record (文 → も in 文字); those are stored with `canonical_reading` NULL, so they join no reading group and never surface.
+The 8% is not a random sample — sound changes cluster in *frequent* compounds, because common words erode phonetically. Dropping them would cost 仕事, 出口, 学校 and 一生. The 2.09% that remains is verb stem forms (引き, 言い) and readings KANJIDIC2 simply doesn't record (文 → も in 文字); those are stored with `canonical_reading` NULL, so they join no reading group and never surface.
 
 **Kana script normalization (D-37).** The sources disagree on script, and the ingest must reconcile them deliberately:
 

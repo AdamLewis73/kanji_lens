@@ -35,14 +35,14 @@ CREATE TABLE kanji (
 
 -- ------------------------------------------------------------------ words
 
--- 322,324 rows expected. One row per (text, reading) pair, expanded from
+-- 322,323 rows expected. One row per (text, reading) pair, expanded from
 -- JMdict entries while HONOURING re_restr — a naive cross-product invents
 -- 11,547 words that do not exist (V-18).
 --
 -- Kana-only entries (41,149 of them, ~19%) have no <keb>; their text IS the
 -- kana, so text == reading.
 --
--- 1,492 keys (0.46%) are produced by more than one JMdict entry, almost all
+-- 1,659 merges occur where a key is produced by more than one entry, almost all
 -- kana-only homonyms (うん, ギリギリ, カラカラ). Those are MERGED into one row
 -- and their senses concatenated, because D-48 renders every sense of a written
 -- form on one screen anyway — the entry boundary is not something the UI shows.
@@ -125,10 +125,9 @@ CREATE INDEX idx_example_word ON example (word_id, sense_order);
 -- NULL` is the health check (V-22). A build that suddenly cannot match 12% of
 -- rows says so, rather than quietly rendering a thinner Examples tab.
 --
--- Measured over 574,731 spans (D-52): 8.00% unmatched with exact comparison,
--- 2.25% after rendaku, gemination and okurigana normalization. Fail the build
--- above ~4%. What remains is verb stem forms (引き, 言い) and readings
--- KANJIDIC2 does not record at all (文 → も in 文字).
+-- Measured over 574,721 spans (D-52): 8.00% unmatched with exact comparison,
+-- 2.09% shipped. Fail the build above ~4%. What remains is verb stem forms
+-- (引き, 言い) and readings KANJIDIC2 does not record at all (文 → も in 文字).
 
 CREATE TABLE kanji_in_word (
     kanji_char        TEXT    NOT NULL REFERENCES kanji(char),

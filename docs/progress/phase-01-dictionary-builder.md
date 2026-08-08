@@ -21,8 +21,9 @@ Design decisions from this phase are D-38 through D-59, with verification cases 
 
 ## Inspection findings — 2026-08-05
 
-All sources downloaded (51.4 MB total, all seven including the three example
-candidates) and examined as raw text. Both GitHub checksums verified. JMdict and
+All seven candidates downloaded (51.4 MB) and examined. The shipped set is
+four sources, 28.8 MB — the example-sentence candidates were narrowed to one
+by D-51, which folded it into the JMdict variant. Both and examined as raw text. Both GitHub checksums verified. JMdict and
 KANJIDIC2 both generated 2026-08-06.
 
 ### JMdict — 218,329 entries
@@ -84,7 +85,7 @@ Combining adds **1.7 points**, because they are the same corpus — `JMdict_e_ex
 ## Next action
 
 **Phase 2** — the Android app with a text box. Nothing in Phase 1 is
-outstanding. Size settled at 104.7 MB on disk / 30.4 MB gzipped, so the APK
+outstanding. Size settled at 99.7 MB on disk / 30.3 MB gzipped, so the APK
 contribution is 30 MB and the device footprint about 135 MB once Room
 extracts the asset.
 
@@ -94,7 +95,7 @@ extracts the asset.
 - [x] Source datasets downloaded and inspected; findings recorded here
 - [x] Example-sentence source chosen — `JMdict_e_examp` (D-51)
 - [x] Schema finalized — `schema.sql`, applies cleanly
-- [x] JMdict parser — 322,324 words, 388,896 senses; `re_restr`, `stagk`/`stagr` honoured (V-18)
+- [x] JMdict parser — 322,323 words, 388,895 senses; `re_restr`, `stagk`/`stagr` honoured (V-18)
 - [x] Frequency derivation rule stated and applied — nf band, else 49/50, else NULL (V-04)
 - [x] KANJIDIC2 parser — 13,108 kanji, 2,501 ranked (no grade, radical or JLPT: D-50, D-42)
 - [x] JmdictFurigana ingest → `kanji_in_word` — 574,721 rows, 7 unmatched keys
