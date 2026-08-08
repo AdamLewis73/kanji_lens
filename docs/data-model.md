@@ -8,12 +8,13 @@ All free. All require attribution — see the bottom of this file.
 
 | Dataset | Provides | Format | License |
 |---|---|---|---|
-| **JMdict** | Japanese-English word entries: writings, readings, senses, part of speech, frequency tags | Large XML, gzipped | CC BY-SA (EDRDG) |
-| **KANJIDIC2** | Per-kanji data: meanings, on/kun readings, stroke count, school grade, official radical, frequency rank | XML, gzipped — 13,108 kanji | CC BY-SA (EDRDG) |
+| **JMdict** (`_examp` variant) | Word entries: writings, readings, senses, part of speech, frequency tags — **plus example sentences inside each `<sense>`** (D-51) | Large XML, gzipped | CC BY-SA (EDRDG) |
+| **KANJIDIC2** | Per-kanji data: meanings, on/kun readings, stroke count, frequency rank. *(Also carries grade, radical and a pre-2010 JLPT level — none ingested; D-42, D-50)* | XML, gzipped — 13,108 kanji | CC BY-SA (EDRDG) |
 | **KanjiVG** | Stroke order paths | **One combined XML**, gzipped | CC BY-SA |
-| **JmdictFurigana** | Per-character reading alignment — **internal index only**, D-13 | Text or JSON, one entry per line | Derived, CC BY-SA |
-| **Example sentences** | Japanese sentences with English translations | Three candidate sources — see below | CC-BY |
+| **JmdictFurigana** | Per-character reading alignment — **internal index only**, D-13 | Text, one entry per line | Derived, CC BY-SA |
 | **KRADFILE** | Kanji → its visual components | Text | CC BY-SA (EDRDG) — **deferred**, see `roadmap.md` |
+
+Example sentences are **not** a separate source: D-51 folded them into the JMdict variant above, where they nest inside each `<sense>`.
 
 ### Where they come from
 
@@ -21,30 +22,39 @@ Confirmed August 2026. Acquisition and refresh policy is D-41.
 
 | Dataset | Source | Versioning |
 |---|---|---|
-| JMdict | `ftp.edrdg.org/pub/Nihongo/JMdict_e.gz` | **None** — regenerated daily at a fixed URL |
+| JMdict | `ftp.edrdg.org/pub/Nihongo/JMdict_e_examp.gz` | **None** — regenerated daily at a fixed URL |
 | KANJIDIC2 | `edrdg.org/kanjidic/kanjidic2.xml.gz` | **None** — fixed URL |
-| KanjiVG | GitHub `KanjiVG/kanjivg` releases | Tagged, immutable, SHA-256 published (3.6 MB gzipped) |
-| JmdictFurigana | GitHub `Doublevil/JmdictFurigana` releases | Tagged, immutable, SHA-256 published (5.2 MB gzipped) |
-| Tanaka Corpus | EDRDG — ~150,000 edited sentence pairs | Loose |
+| KanjiVG | GitHub `KanjiVG/kanjivg` releases | Tagged, immutable, SHA-256 published |
+| JmdictFurigana | GitHub `Doublevil/JmdictFurigana` releases | Tagged, immutable, SHA-256 published |
+
+**Four sources, 28.8 MB compressed.** There is no separate example-sentence source — D-51 folded that into the JMdict variant above.
 
 Two practical consequences, both feeding D-41:
 
-- **Three of five sources have no version history.** A past version of JMdict cannot be requested. Reproducing an old build requires having kept the file.
+- **Three of the four sources have no version history.** A past version of JMdict cannot be requested. Reproducing an old build requires having kept the file — which is why D-55 commits them.
 - **The generation date is written into each EDRDG file's header**, so the checksum changes daily whether or not any content did. Pin by header date; a checksum detects difference, not meaningful change.
 
-**Internal file structure is still unverified.** URLs, formats, licensing and versioning are confirmed; the actual element shapes are not. Phase 1's first task remains downloading and examining the real files before writing parsing code.
+**All four have been parsed.** Everything below describes structure confirmed against the real files rather than documentation, and the findings that contradicted the documentation are recorded in `progress/phase-01-dictionary-builder.md`.
 
-### Example sentences — three candidates, decide after inspection
+### Example sentences — settled by D-51
 
-`data-model.md` originally named Tatoeba. That predates knowing the alternatives, and the choice should be settled by looking at the files:
+An earlier draft of this file named Tatoeba as a separate source. Three candidates were downloaded and measured on 2026-08-06; **`JMdict_e_examp` won and the others were dropped from the manifest.** Full comparison and the rejected alternatives are in D-51.
 
-| Candidate | Why it might win |
-|---|---|
-| **Tatoeba** (raw) | Largest and most current, but sentences are not linked to dictionary words — we would have to match them ourselves |
-| **Tanaka Corpus** (`examples.utf`) | ~150,000 *edited* pairs, and words were extracted per sentence during its compilation — potentially giving word↔sentence links for free |
-| **`JMdict_e_examp.gz`** | A JMdict variant with examples attached; if they are attached per *sense*, that is finer-grained than anything we could reconstruct |
+Its examples nest inside each `<sense>`, carrying the Tatoeba sentence id, the word's surface form, and a jpn/eng pair:
 
-Download all three; the difference should be obvious within minutes of looking.
+```xml
+<sense>
+  <gloss>CD player</gloss>
+  <example>
+    <ex_srce exsrc_type="tat">162365</ex_srce>
+    <ex_text>ＣＤプレイヤー</ex_text>
+    <ex_sent xml:lang="jpn">私は、このＣＤプレイヤーをただで得ました。</ex_sent>
+    <ex_sent xml:lang="eng">I got this CD player for free.</ex_sent>
+  </example>
+</sense>
+```
+
+**Coverage is 41.4% of common senses** — those belonging to entries with a frequency tag. The ceiling across all sources is about 43%, because the corpus simply doesn't attest the rest. **These are ingested but not rendered in v1** (D-51); whether to show them is a Phase 2 decision made against real screens rather than a percentage.
 
 ### Notes on specific datasets
 
@@ -54,10 +64,22 @@ Expanding an entry into `(text, reading)` rows by naive cross-product therefore 
 
 **JMdict frequency tags.** Entries carry priority markers (`nf01`–`nf48`, `news1`, `ichi1`, `spec1`) indicating how common a word is. These are **not optional** — they're what makes example lists useful. An unranked list of words containing 生 surfaces obscure vocabulary first and makes the app feel broken.
 
-Note these live on **writing and reading elements separately** (`ke_pri`, `re_pri`), not on the entry, so `word_frequency` needs a stated derivation rule rather than a guess. Proposed: take the best `nf##` band available across the writing and reading elements, falling back to `ichi1` / `news1` / `spec1`. V-04 depends on whatever rule is chosen.
+Note these live on **writing and reading elements separately** (`ke_pri`, `re_pri`), not on the entry, so the rule combines both. As implemented in `ingest_jmdict.freq_rank()`:
 
-**KANJIDIC2 details that affect the schema.**
+| Signal | Stored rank |
+|---|---|
+| Best `nf01`–`nf48` band across the writing and reading | 1–48 |
+| Otherwise `ichi1` / `news1` / `spec1` / `gai1` | 49 |
+| Otherwise `ichi2` / `news2` / `spec2` / `gai2` | 50 |
+| No priority marker at all | NULL — **sorts last** |
 
+Confirmed against the data: 学校 / 生活 / 生産 land at nf01, 先生 at nf02, 誕生日 at 49. Only **44,311 of 322,323 words** carry any marker, so the NULL case is the common one and must sort last, not first (V-04).
+
+**KANJIDIC2 details that affect the schema.** Confirmed by inspection 2026-08-05.
+
+- **`radical` is a number, not a character.** 生 yields `<rad_value rad_type="classical">100</rad_value>`. Displaying it would need a 214-entry number→glyph mapping KANJIDIC2 does not contain. **Moot for v1** — D-50 drops the radical entirely, which retires this task. Recorded because the finding outlives the decision: anyone reinstating radicals inherits the mapping problem.
+- **`<meaning>` carries several languages.** English glosses are the elements with *no* `m_lang` attribute; French, Spanish and Portuguese sit alongside them. Ingesting indiscriminately fills the app with French.
+- **Kun readings carry positional markers** — `.` separates okurigana (`い.きる`), a trailing `-` marks a prefix (`なま-`), a leading `-` marks a suffix (`-う`). These must be stripped before matching against JmdictFurigana's surface readings.
 - **Stroke count may have several values** — the first is the accepted count, later ones are common miscounts. V-09 compares this against KanjiVG's path count and must name *which*.
 - **`nanori`** are name-only readings. They must not be mixed into kun'yomi display, or the app will teach readings that never appear in ordinary text.
 - **A frequency ranking exists** for the 2,501 most common kanji (by occurrence in Mainichi Shimbun). Useful for ordering; worth ingesting.
@@ -66,6 +88,26 @@ Note these live on **writing and reading elements separately** (`ke_pri`, `re_pr
 **KanjiVG structure.** Distributed as a **single combined XML file** (~3.6 MB gzipped), not as eleven thousand individual SVGs — earlier drafts of this document said otherwise. Each character contains one `<path>` element per stroke, in correct drawing order. Stroke-order animation is therefore rendering those paths sequentially with an animated stroke-dash offset — not a video, not a sprite sheet. Roughly 200 lines of Compose once the data is loaded.
 
 **JmdictFurigana purpose.** It records that in 先生, 先 carries せん and 生 carries せい. This is never shown to the user (D-06), but it is what allows example words to be grouped by which reading a kanji carries (D-04). See D-13.
+
+Format is `text|reading|index:kana;index:kana`, confirmed by inspection:
+
+```
+先生|せんせい|0:せん;1:せい
+明日|あした|0-1:あした        ← RANGE — jukujikun, do not split
+学校|がっこう|0:がっ;1:こう    ← gemination: 学 is がく
+花火|はなび|0:はな;1:び        ← rendaku: 火 is ひ
+```
+
+Two things fall out of this. **Range notation marks jukujikun explicitly**, so V-03 is a matter of honouring the format rather than detecting the case. And **surface kana routinely differ from dictionary readings**, which is the fuzzy-matching problem in V-17.
+
+Measured over 574,721 spans, the matcher's residue (D-52):
+
+| Matching | Unmatched |
+|---|---:|
+| Exact comparison only | 8.00% |
+| Plus rendaku, gemination, okurigana | **2.09%** |
+
+The 8% is not a random sample — sound changes cluster in *frequent* compounds, because common words erode phonetically. Dropping them would cost 仕事, 出口, 学校 and 一生. The 2.09% that remains is verb stem forms (引き, 言い) and readings KANJIDIC2 simply doesn't record (文 → も in 文字); those are stored with `canonical_reading` NULL, so they join no reading group and never surface.
 
 **Kana script normalization (D-37).** The sources disagree on script, and the ingest must reconcile them deliberately:
 
@@ -82,6 +124,8 @@ Reading group labels must display on'yomi in **katakana** and kun'yomi in **hira
 
 Built by a desktop Python script (D-10) and loaded via Room's `createFromAsset`. Replaced wholesale on app upgrade, so it **never needs a migration** — if the schema changes, regenerate the file and swap it. Do not build migration machinery for this database.
 
+**99.7 MB on disk, 30.3 MB gzipped** — the gzipped figure is what the APK carries, and the device holds both once Room extracts the asset. Physical layout is D-56 (`WITHOUT ROWID` for narrow rows, plain tables for wide ones) and indexing is D-57 (demand-driven, column order load-bearing). Both carry the per-object measurements; re-measure per object before accepting any layout change, because the total hides a single table moving the wrong way.
+
 Draft schema. Expect revision once the real source files have been inspected:
 
 ```
@@ -92,9 +136,9 @@ kanji
   kun_readings      hiragana: い(きる), う(まれる), なま — excludes nanori
   stroke_count      the FIRST KANJIDIC2 value; later ones are miscounts
   freq_rank         Mainichi Shimbun rank, top 2,501 only; null otherwise
-  grade             school year taught, if any
-  radical           the official indexing radical
-                    (no jlpt column — D-42)
+                    no jlpt column    (D-42)
+                    no grade column   (D-50)
+                    no radical column (D-50)
 
 word
   id                internal only — NEVER referenced from user data (D-11)
@@ -111,10 +155,17 @@ word_frequency
 kanji_in_word       ← from JmdictFurigana; powers D-04 and the Examples tab
   kanji_char        生
   word_id
-  reading_of_kanji  セイ  — which reading this kanji carries in THIS word
+  position          character index within the word
+  surface_reading   がっ  — the kana as it appears in THIS word
+  canonical_reading カク  — the dictionary reading it matched; NULL = unmatched
+  reading_group     カク / い  — what D-04 groups by (okurigana stripped)
+  reading_type      'on' | 'kun' | NULL
+  word_freq         word.freq_rank denormalized, NULL stored as 9999
 
-example
-  word_id, japanese, english
+example             ← ingested but NOT rendered in v1 (D-51)
+  word_id, sense_order       attaches to a SENSE, not just a word
+  japanese, english
+  tatoeba_id                 ex_srce; lets a sentence be traced upstream
 
 strokes
   kanji_char, svg_paths
@@ -131,6 +182,27 @@ meta                ← one row; lets the app detect an asset upgrade
 ```
 
 `kanji_in_word` is the table that answers *"show me every common word where 生 is read セイ."* It is queried constantly and rendered never.
+
+**Group by `reading_group`, not `canonical_reading`.** The canonical reading is stored verbatim, so 生 is `い.きる` in 生きる but `い` in 生き残り — the same reading, two values. Grouping on it splits 生's kun readings into 13 groups, several holding one word, which demonstrates no pattern at all. Grouping on the stem gives 8, with 136 words under `い`. Measured on the built database:
+
+| | `canonical_reading` | `reading_group` |
+|---|---:|---:|
+| 生, kun groups | 13 | 8 |
+| words under い | 4 | 136 |
+
+**Sort by frequency with unranked last; never filter on it.** About 86% of words are unranked, and a reading group whose words happen to all be unranked would render as an empty panel — 手's ズ group is exactly that case, with one unranked word. Filtering makes a group that exists in the data show nothing.
+
+**The Examples-tab query must be an ordered index scan, not an aggregate.** `kanji_in_word` carries `word_freq` denormalized and the index is `(kanji_char, reading_group, word_freq)`, so:
+
+```sql
+SELECT word_id FROM kanji_in_word
+WHERE kanji_char = ? AND reading_group = ?
+ORDER BY word_freq LIMIT 12          -- fetch a few extra, dedupe by reading
+```
+
+stops after twelve rows. Ordering by the word's own `freq_rank` instead requires joining every row in the group, sorting in a temp b-tree, and only then applying `LIMIT` — so the cost is the size of the whole group. Measured: **10.94 ms → 0.079 ms** for 生/セイ, which holds 1,462 rows. The largest groups belong to the commonest kanji, so this is the screen users open most.
+
+Unranked words are stored as `9999` rather than NULL precisely so a plain ascending scan orders correctly without a `NULLS LAST` clause the index cannot use.
 
 `changes` is **derived** — recomputed each build by comparing this build's `(text, reading)` key set against the previous shipped build's. It accumulates nothing, so the dictionary stays disposable (D-38). The only artifact carried between builds is the previous key list.
 

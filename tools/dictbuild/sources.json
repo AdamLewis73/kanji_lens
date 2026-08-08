@@ -1,0 +1,76 @@
+{
+  "_comment": [
+    "Pinned source manifest for the KanjiLens dictionary build. See D-41.",
+    "",
+    "Sources with versioning 'none' are published at a fixed URL and regenerated",
+    "continuously — a past version CANNOT be requested. Their generation date is",
+    "written into the file header, which is the real version identifier; the",
+    "checksum changes daily whether or not any content did.",
+    "",
+    "Sources with versioning 'tagged' are immutable GitHub release assets and are",
+    "pinned by tag, with the publisher's own SHA-256 recorded for verification.",
+    "",
+    "Refresh at defined events only: phase start, pre-release, and per release."
+  ],
+
+  "sources": [
+    {
+      "name": "jmdict",
+      "description": "Japanese-English word entries: writings, readings, senses, part of speech, frequency tags. The _examp variant is JMdict_e PLUS example sentences nested inside each <sense> — it replaces JMdict_e rather than supplementing it (D-51)",
+      "url": "http://ftp.edrdg.org/pub/Nihongo/JMdict_e_examp.gz",
+      "filename": "JMdict_e_examp.gz",
+      "license": "CC BY-SA 4.0 (EDRDG)",
+      "versioning": "none",
+      "gzipped": true,
+      "header_date_pattern": "JMdict created: (\\d{4}-\\d{2}-\\d{2})"
+    },
+    {
+      "name": "kanjidic2",
+      "description": "Per-kanji data: meanings, on/kun readings, stroke count, grade, radical, frequency rank",
+      "url": "http://www.edrdg.org/kanjidic/kanjidic2.xml.gz",
+      "filename": "kanjidic2.xml.gz",
+      "license": "CC BY-SA 4.0 (EDRDG)",
+      "versioning": "none",
+      "gzipped": true,
+      "header_date_pattern": "<date_of_creation>(\\d{4}-\\d{2}-\\d{2})</date_of_creation>"
+    },
+    {
+      "name": "kanjivg",
+      "description": "Stroke order paths, one combined XML",
+      "url": "https://github.com/KanjiVG/kanjivg/releases/download/r20250816/kanjivg-20250816.xml.gz",
+      "filename": "kanjivg-20250816.xml.gz",
+      "license": "CC BY-SA 3.0",
+      "versioning": "tagged",
+      "version": "r20250816",
+      "gzipped": true,
+      "expected_sha256": "b36579789775ea912d5e98356bf243f54fb953fa3b58a16c2d6995f252e2a3e2"
+    },
+    {
+      "name": "jmdictfurigana",
+      "description": "Per-character reading alignment. Internal index only (D-13)",
+      "url": "https://github.com/Doublevil/JmdictFurigana/releases/download/2.3.1%2B2026-07-25/JmdictFurigana.txt",
+      "filename": "JmdictFurigana.txt",
+      "license": "CC BY-SA (derived from JMdict)",
+      "versioning": "tagged",
+      "version": "2.3.1+2026-07-25",
+      "gzipped": false,
+      "expected_sha256": "2d5a6a11195ecfbaa56586720fa4e869e5db146eb2973683161fa54fce3936d7"
+    }
+  ],
+
+  "_rejected": [
+    "Example-sentence sources evaluated 2026-08-06 and rejected; see D-51 for the",
+    "measurements. Kept here so they are not re-proposed without cause.",
+    "",
+    "  Tanaka Corpus   http://ftp.edrdg.org/pub/Nihongo/examples.utf.gz",
+    "      Better word-level coverage (57.3% vs 55.9% of common entries) but only",
+    "      7,537 sense-tagged pairs vs JMdict_e_examp's 31,642. Most B-line tokens",
+    "      carry no sense number.",
+    "",
+    "  Raw Tatoeba     https://downloads.tatoeba.org/exports/per_language/jpn/jpn_sentences.tsv.bz2",
+    "      Export is id/lang/text only. No English pairing, no word index.",
+    "",
+    "  Combining Tanaka with JMdict_e_examp adds +1.7 percentage points. They are",
+    "  the same corpus."
+  ]
+}

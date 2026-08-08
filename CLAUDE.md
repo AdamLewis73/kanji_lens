@@ -31,8 +31,21 @@ Violating any of these destroys user data or forces a rewrite. Each links to ful
 | Datasets, both schemas, migrations, backup | `docs/data-model.md` |
 | Screens, overlay, typography, interaction | `docs/ux.md` |
 | Expected values for silent-failure bugs (`V-##`) | `docs/verification.md` |
+| Required licence text for the in-app screen | `docs/attribution.md` |
 | Phases, decision checkpoints, deferred backlog | `docs/roadmap.md` |
 | Current state of work in flight | `docs/progress/` |
+
+## Do not read these paths
+
+Committed on purpose (D-55), but they are third-party data and generated artifacts, never project code. Opening one wastes a large amount of context for nothing:
+
+| Path | What |
+|---|---|
+| `tools/dictbuild/data/` | ~29 MB of JMdict, KANJIDIC2, KanjiVG, JmdictFurigana sources |
+| `tools/dictbuild/baseline/` | 3.5 MB generated key list for the `changes` diff |
+| `*.db`, `*.gz`, `*.tsv` | build output and compressed data |
+
+To inspect their *structure*, use `tools/dictbuild/inspect_sources.py`, which prints small representative samples. `.gitattributes` marks them binary so diffs stay collapsed.
 
 ## Conventions
 
@@ -54,5 +67,8 @@ The project owner has asked to be **stopped before decisions that are expensive 
 
 ## Status
 
-**Current phase:** Phase 1 — Dictionary Builder (not started)
-**Nothing is implemented yet.** The repository contains documentation only.
+**Phase 1 — Dictionary Builder: complete.** `tools/dictbuild/` builds a 99.7 MB `kanjilens.db` (30.3 MB gzipped) from four pinned sources in ~45 seconds. `verify.py` passes 10 of 10 verification cases.
+
+**Current phase:** Phase 2 — Android app, text input only. Not started; no Kotlin exists yet.
+
+Phase 2 has three decision checkpoints, the first at its **first commit** (module structure, `:domain`/`:data` free of `android.*`). See the checkpoint table in `docs/roadmap.md` and raise them before writing code.

@@ -12,6 +12,8 @@ A crash is self-reporting. These aren't.
 
 Each case names the decision it protects, so grepping this file for a decision ID (`D-12`) finds every case that assumes it. Keeping those in sync is part of the supersede procedure documented at the top of `decisions.md` — a stale verification case is worse than none, because it asserts something the project no longer believes.
 
+**These are not unit tests, and both exist.** `tools/dictbuild/test_dictbuild.py` asks whether the *code* is right — pure functions, edge cases, milliseconds. This file asks whether the *data* is right, and `verify.py` runs it against a built database. They catch different things: if a rendaku mapping were wrong, 学校 and 花火 might still resolve while thousands of other words broke, and every case here would pass.
+
 **Readings below should be confirmed against KANJIDIC2 during Phase 1 rather than trusted from this file** — this document records the *shape* of the expected answer and the trap being tested, not an authoritative reading list.
 
 ---
@@ -33,19 +35,25 @@ Query the kanji 生 and check the script of each reading group:
 
 Fails silently as `せい` / `しょう` if normalization is skipped.
 
+**"kun'yomi are hiragana" has ~60 real exceptions** — see V-24. Assert this case on 生, not as a blanket rule over the whole table.
+
 ### V-02 · Words with multiple readings survive ingest (D-12)
 
 The trap: a naive "one row per word text" schema keeps whichever reading it encountered last and silently discards the others.
 
-Query 上手. Expect **three** distinct entries:
+**Confirmed against JMdict 2026-08-06.** 上手 is **two entries carrying five readings** — not one entry, and not the three this case originally assumed:
 
-| Reading | Meaning |
-|---|---|
-| じょうず | skilled, good at |
-| うわて | the upper hand, superior position |
-| かみて | stage left, upstream |
+| ent_seq | Readings | First gloss |
+|---|---|---|
+| 1353320 | じょうず, じょうて `ok`, じょうしゅ `ok` | skillful |
+| 1580400 | うわて, かみて | upper part |
 
-One row returned means identity is keyed on text alone — a D-12 violation that makes the readings unrecoverable later.
+Two things to assert:
+
+1. **Five `(text, reading)` rows survive ingest.** Fewer means identity collapsed to text alone — a D-12 violation that makes the readings unrecoverable later.
+2. **The rows come from two different entries.** A parser assuming one entry per writing will drop 1580400 entirely, losing うわて and かみて while still looking correct for じょうず.
+
+じょうて and じょうしゅ carry `&ok;` (out-dated kana). Whatever the display policy for those turns out to be, they must not be *discarded at ingest* — that decision belongs to the UI, not the parser.
 
 ### V-03 · Jukujikun alignment (D-06, D-13, D-14)
 
@@ -101,6 +109,61 @@ Not testable against a single build. Build the dictionary twice from different s
 
 Expect: the removed `(text, reading)` appears in `changes` with the build id, and with a replacement key where JMdict recorded one. An empty `changes` table on a build where keys genuinely disappeared means the diff never ran — and nothing downstream will complain, because a missing warning looks exactly like no warning being needed.
 
+### V-24 · Loanword kun'yomi keep their katakana (D-37)
+
+The trap is the *opposite* of V-01's. Having established that on'yomi must be katakana, the tempting next step is to force kun'yomi to hiragana. That corrupts about 60 readings, and nothing errors.
+
+Japanese writes loanwords in katakana, and KANJIDIC2 preserves that where a kanji's word-level reading is a loanword:
+
+| Kanji | Frequency | Expected kun readings |
+|---|---:|---|
+| 志 | 823 | こころざ.す, こころざし, **シリング** |
+| 粉 | 1,484 | こ, こな, **デシメートル** |
+| 粁 | — | **キロメートル** |
+| 吋 | — | **インチ** |
+
+Check 志 specifically: it is a common kanji, so the damage is visible to ordinary users rather than confined to obscure characters. Rendering しりんぐ is wrong — nobody writes it that way.
+
+Expect **about 60** katakana kun readings across the whole table. The build reports the count and flags above 100 (`kun_katakana_loanword`). Zero means something is converting them; a large jump means the source changed.
+
+### V-25 · The build is deterministic (D-41)
+
+Identical sources must produce an identical database. `build_id` is a hash of the source checksums, so a build that changes nothing is *labelled* as changing nothing — which is a lie if the output actually varies.
+
+Rebuild the alignment with different `PYTHONHASHSEED` values and hash the result:
+
+```bash
+for seed in 1 2 3; do PYTHONHASHSEED=$seed python build.py --only furigana; done
+# then hash: kanji_char, word_id, position, canonical_reading, reading_type
+```
+
+All three must agree.
+
+**The trap this caught.** A surface reading can match several readings of the same kanji — 一 is both イチ and イツ, and いっ geminates from either. The matcher originally iterated a Python `set` of candidates, and string hashing is randomised per process, so the winner varied between runs. 一生 resolved to イチ on one build and イツ on the next, from byte-identical inputs.
+
+Nothing errors. Both are real readings of 一. The word simply lands in a different reading group on the Examples tab depending on which process built the dictionary, and the `changes` diff (D-39) would report spurious churn between builds that changed nothing.
+
+The fix — iterate KANJIDIC2's reading list rather than the candidate set — is also more correct, since that list is ordered with the primary reading first.
+
+### V-22 · Reading-alignment residue stays within bounds (D-52, V-17)
+
+A build-health assertion rather than a content check, and the mechanism that makes V-17's silent failures visible.
+
+```sql
+SELECT count(*) * 100.0 / (SELECT count(*) FROM kanji_in_word)
+FROM kanji_in_word WHERE reading_type IS NULL;
+```
+
+| Matcher state | Expected residue |
+|---|---|
+| Exact comparison only | ~8.0% |
+| With rendaku + gemination + okurigana (D-52) | **~2.25%** |
+| Plus verb-stem conjugation, if implemented | ~1.5% |
+
+**Fail the build above roughly 4%.** The number is stable across dictionary refreshes because it reflects the matcher, not the data — so a jump means the normalizer broke, not that JMdict changed.
+
+This is the whole reason unmatched spans are stored with NULL rather than dropped. Deleting them destroys the evidence and the Examples tab simply gets thinner, which nobody notices. Spot-check that 仕事, 出口, 学校 and 一生 all resolve — those are the high-frequency compounds that fail under exact matching.
+
 ---
 
 ## Phase 2 — Tokenization and lookup
@@ -131,15 +194,51 @@ Two conventions that are easy to conflate, on screen at the same time:
 
 If both render in the same script, one convention has been applied globally.
 
+### V-21 · Obsolete readings are visibly distinguished (D-53, D-48)
+
+Scan or paste **上手**. Under D-48 the word screen lists every reading as a section, so all five appear:
+
+| Reading | Tag | Expected treatment |
+|---|---|---|
+| じょうず | — | normal |
+| うわて | — | normal |
+| かみて | — | normal |
+| じょうて | `ok` | **marked archaic** |
+| じょうしゅ | `ok` | **marked archaic** |
+
+The failure this catches: じょうて rendering identically to じょうず. Nothing errors, the screen looks complete, and the app has quietly taught a reading that has not been current for centuries — to a learner with no way to know the difference.
+
+Note the app never knows *which* reading was scanned (D-44, D-53), so this cannot be solved by only showing archaic readings when they were the one photographed. Every reading is always shown; the marking is what carries the information.
+
+Also confirm the reverse: a word with no `ok` readings shows no archaic marking anywhere. A marker applied globally is as wrong as one never applied, and looks just as plausible.
+
+### V-23 · Sense filtering never empties a word (D-54, D-40)
+
+With "show explicit content" **off** — the default — find a word whose senses are *all* tagged `vulg`, `sens`, `derog` or `X`, and open it.
+
+Expect the senses to be **shown anyway**, or an explicit "this word has hidden senses" affordance. What must not happen is the word resolving to nothing.
+
+The trap: filtering is applied per sense, so a word where every sense is filtered silently becomes an empty result. It reads as "the dictionary doesn't have this word" — a broken app rather than a discreet one — and it happens on exactly the words a user is most likely to be puzzled by. Same failure shape as D-40, arriving from a different direction.
+
+Check the counts hold too: roughly 900 senses carry the explicit tags and about 3,900 carry `sl` / `col`. If toggling the explicit filter changes far more than ~900 senses, the wrong tag set is wired to it.
+
 ---
 
 ## Phase 3 — Stroke order
 
 ### V-09 · Stroke count and stroke path count agree (KanjiVG)
 
-For any kanji, the number of animated paths must equal KANJIDIC2's stroke count. A mismatch means the SVG was parsed incorrectly — the animation still plays and still looks like handwriting, which is exactly why this needs an assertion rather than an eyeball.
+The animation still plays and still looks like handwriting whatever the path count is, which is why this needs an assertion rather than an eyeball.
 
-**Compare against the *first* `stroke_count` value only.** KANJIDIC2 may list several; the first is the accepted count and the rest are documented common miscounts. Comparing against all of them, or against the last, produces failures that look like parser bugs but aren't.
+**Compare against the *first* `stroke_count` value only.** KANJIDIC2 may list several; the first is the accepted count and the rest are documented common miscounts.
+
+**But the expected mismatch count is not zero.** Measured on the built database: **109 of 6,416** ingested kanji disagree (1.7%), and **20 of 2,501** ranked ones (0.8%). They are overwhelmingly ±1, and they cluster on characters containing 辶 (shinnyou), which is genuinely drawn with two or three strokes depending on whether the printed or handwritten form is followed — 辻 (5 vs 6), 逗 (10 vs 11), 謎 (16 vs 17), 葛 (11 vs 12).
+
+So the assertion is a **bound, not an equality**: fail above ~150 mismatches. A real parsing fault produces a far higher rate or a systematic offset, not a 1.7% scatter concentrated on one radical. Spot-check that 生 (5), 先 (6), 手 (4), 一 (1) and 鬱 (29) all match exactly — a parser that flattens component groups wrongly fails those immediately.
+
+**Display consequence.** The Stroke Order tab shows the stroke count (D-50). It must show the **number of paths being animated**, not KANJIDIC2's figure — otherwise 辻 says "5 strokes" while the animation visibly draws 6, and the user is watching the contradiction happen.
+
+**Coverage is not universal and that is expected.** KanjiVG holds 6,702 characters against KANJIDIC2's 13,108, so 6,692 kanji have no stroke data at all. But coverage of the **top 2,501 ranked kanji is 100%**, so the gap falls entirely on rare characters. Assert that number rather than total coverage; a drop below it means the ingest is dropping entries.
 
 Spot-check a low-stroke and a high-stroke character.
 

@@ -39,17 +39,22 @@ A user photographs a sign reading `先生と生産`. This walks the whole system
 
 **5. Peek.** The user taps 先生. A bottom sheet rises partway:
 
-> **先生** ・ せんせい
+> **先生**
 > teacher; instructor; master
 > `[Save]` `[Full Details]`
 
-**6. Word screen.** Dragging the sheet up expands it (D-30) into the full word screen:
+**No reading here** (D-47). The app would be guessing, and a learner who already knew the reading wouldn't be scanning the word.
 
-> **先生** ・ せんせい — teacher; instructor; master
-> Composed of: `先 previous, ahead` `生 life, birth`
-> Examples: 日本語の先生 — *a Japanese teacher*
+**6. Word screen.** Dragging the sheet up expands it (D-30) into the full word screen — one section per reading, chips last (D-48):
 
-Note the component chips show meanings but **not** readings (D-06).
+> **先生**
+> **せんせい**
+>  1. teacher; instructor; master
+>  2. sensei — title for a teacher, doctor, lawyer or artist
+>
+> Composed of: `先 before, ahead, previous` `生 life, genuine, birth`
+
+Note the component chips show meanings but **not** readings (D-06). Example sentences are ingested but not shown in v1 (D-51) — only 41% of common senses have one, and whether that reads as useful or as a gap is a judgement best made against real screens in Phase 2.
 
 **7. Kanji screen.** The user taps the 生 chip. The sheet swaps in place, with a back arrow (D-32), to a three-tab kanji screen. The **Examples** tab is where the app's core idea lands:
 
@@ -59,6 +64,8 @@ Note the component chips show meanings but **not** readings (D-06).
 > **い(きる)** — 生きる to live
 
 The user sees, without reading any authored explanation, that 生 carries different sounds and senses depending on the company it keeps. That's the entire product thesis in one screen (D-04).
+
+*Had they scanned 生 on its own* — on a beer tap, say — they would land on **this same kanji screen directly**, skipping the word screen (D-49). Its Overview tab would additionally list 生's senses as a standalone word (なま "raw", せい "life", き "pure"), each with example sentences. One kanji, one screen, whichever direction you arrive from.
 
 **8. Save and review.** Tapping Save stores 先生 as a study item, optionally into a named list like "Street Signs". It enters the FSRS schedule and reappears for review at the right time. The scan image is saved with it, so the word stays attached to the place it was found.
 
@@ -98,6 +105,8 @@ Terms used throughout these docs.
 | **Jukujikun** | A word whose reading attaches to the word as a whole and cannot be split per character. 明日 = あした. Important because it invalidates per-character reading display (D-06). |
 | **Compound (熟語)** | A word made of two or more kanji. 先生, 生産. |
 | **Radical (部首)** | The classical indexing component of a kanji. Exactly one per kanji, drawn from a set of 214 established in a 1716 dictionary. Distinct from the full set of visual components a kanji contains. |
+| **Sense** | One distinct meaning of a word — a lexicography term, nothing to do with the five senses. English "bank" has three: financial institution, side of a river, to tilt an aircraft. 上手 (じょうず) has two: *skillful* and *flattery*. JMdict stores each as a `<sense>` element. |
+| **Gloss** | One English phrase expressing a sense. A single sense usually has several near-synonymous glosses — "teacher; instructor; master" is **one** sense with three glosses, which is why the peek sheet renders them on one line. |
 | **Tokenization** | Splitting Japanese text into words. Necessary because Japanese is written without spaces, and technically the central problem of this app. |
 | **Morphological analyzer** | A tool that performs tokenization, also returning part of speech and dictionary base forms. Kuromoji is one. |
 | **SRS** | Spaced Repetition System. Schedules reviews at growing intervals timed to just before predicted forgetting. |

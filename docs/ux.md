@@ -23,26 +23,60 @@ Scan
  └─ live preview + "text detected" indicator + large shutter
      └─ frozen image + overlay
          └─ tap word → PEEK SHEET
-                        word · furigana · reading · meaning
+                        word · meanings only — NO reading (D-47)
                         [Save]  [Full Details]
-             └─ expand → WORD SCREEN            (same sheet, D-30)
-                          reading(s), meanings + part of speech,
-                          component kanji chips, example sentences
-                 └─ tap chip → KANJI SCREEN     (in place, back arrow, D-32)
-                                Overview | Examples | Stroke Order
+             │
+             ├─ expand, MULTI-character → WORD SCREEN      (same sheet, D-30)
+             │              per reading:  reading
+             │                            meanings + part of speech
+             │                            example sentences
+             │              component kanji chips LAST      (D-48)
+             │    └─ tap chip → KANJI SCREEN  (in place, back arrow, D-32)
+             │
+             └─ expand, SINGLE character → KANJI SCREEN directly (D-49)
+                            Overview | Examples | Stroke Order
 ```
+
+Both routes reach **the same** kanji screen. One kanji, one screen.
 
 ### Word screen — no tabs
 
-Reading(s), meanings with part of speech, **component chips showing meanings only** (D-06), and examples of the word's own usage variations.
+**One screen per written form** (D-48). Every reading appears as a section, because the app cannot tell which one applies (D-44) and showing three tappable entries would ask the user the question they came to have answered.
+
+```
+上手
+  じょうず  skillful; proficient; good (at); adept
+            flattery
+  うわて    upper part
+  かみて    stage left
+Composed of:  上 above, up    手 hand
+```
+
+Reading → meanings, repeated per reading. **Component chips come last**, below every reading, showing meanings only (D-06).
+
+**Obsolete readings appear too, marked as archaic** (D-53). 上手 has five readings; じょうて and じょうしゅ are historical and shown visually distinguished rather than hidden. Someone photographing a temple inscription or an old shopfront is exactly the person who needs them — and the app never knows which reading was scanned anyway, so hiding them would just leave a gap with no explanation. How strongly to mark them is a Phase 2 design question; V-21 covers the failure of not marking them at all.
+
+**Example sentences are not rendered in v1** (D-51). They are ingested and sit in the dictionary, but only 41.4% of common senses have one, and that number is impossible to judge without seeing real screens. The slot in the layout — beneath each sense, above the next reading — is reserved:
+
+```
+  じょうず  skillful; proficient; good (at); adept
+            ← examples would go here, per sense
+            flattery
+```
+
+Two things to settle in Phase 2: whether to show them at all, and how to keep meanings and examples visually distinct at a glance. Both are design questions, not data ones — the data is already there.
 
 ### Kanji screen — three tabs
 
 | Tab | Content |
 |---|---|
-| **Overview** | Meanings, on'yomi / kun'yomi, stroke count, JLPT level, official radical |
-| **Examples** | Other words containing this kanji, grouped by reading, frequency-sorted (D-04) |
-| **Stroke Order** | KanjiVG animation — paths drawn sequentially in correct stroke order |
+| **Overview** | Meanings, on'yomi / kun'yomi, and — when the kanji is also a standalone word — an **As a word** section listing its senses (D-49). Example sentences there follow the same v1 rule as the word screen: ingested, not rendered (D-51) |
+| **Examples** | Other **words** containing this kanji, grouped by reading, frequency-sorted (D-04) |
+| **Stroke Order** | KanjiVG animation — paths drawn sequentially — plus the stroke count. **Show the number of paths being animated, not KANJIDIC2's figure**: the two disagree for ~1.7% of kanji, mostly 辶 forms, and 辻 labelled "5 strokes" while visibly drawing 6 is a contradiction the user watches happen (V-09) |
+
+**Grade, classical radical and JLPT level are deliberately absent** (D-50, D-42). "5 strokes · Grade 1 · Radical 100" is three facts, two of which mean nothing to a non-Japanese learner. Stroke count moved to the Stroke Order tab, where it needs no explanation.
+
+Note the **Examples tab shows words, never sentences.** Sentences attach to *words* and appear wherever word data does — including the Overview tab's "As a word" section. They can never attach to a kanji as a character, because no dataset records which sense a kanji contributes inside a compound (D-44).
 
 The Examples tab expresses the same idea at both levels: **show every distinct way this thing is used.** For a kanji that means its different readings; for a word it means its sense variations.
 
@@ -102,9 +136,24 @@ The meaning shown comes from `snapshot_gloss` (D-43); the merge target from the 
 
 Silently omitting the card is the failure this prevents, and it is invisible: the list is simply one shorter than the user remembers. They cannot tell whether the app lost their word or they misremembered saving it.
 
-**Attribution screen.** A license obligation under CC BY-SA — see `data-model.md`. Not a nicety.
+**Attribution screen.** A licence obligation under CC BY-SA, and EDRDG's statement is specific about its shape for mobile apps:
+
+> acknowledgement must be made **on a separate screen accessed from a menu, such as one labelled "About"** — it is not sufficient just to mention it on a start-up/launch page.
+
+So a line in onboarding does not discharge it. Placing the screen inside Saved or a menu (D-36) satisfies the requirement. Exact wording, per-dataset credits and the shipped dataset versions are in `attribution.md`.
 
 **Storage screen (D-25).** Usage breakdown, a clear action, and a "save scan images" toggle. Users who discover an app consuming 500 MB uninstall it.
+
+**Content settings (D-54).** Two toggles, living wherever Settings lands — not in the bottom nav (D-36):
+
+| Toggle | Default |
+|---|---|
+| Show explicit content — vulgar, sensitive, derogatory | **off** |
+| Show slang & colloquial | **on** |
+
+The defaults differ on purpose. Explicit senses are ~900 out of 252,927, so hiding them costs almost nothing and showing them by default risks an unpleasant surprise. Slang and colloquial are ~3,900 and pervade real signage, menus and manga — hiding those by default means failing to explain the text a user is standing in front of.
+
+**Never filter a word to zero senses.** If everything is filtered, show it regardless. An empty result reads as "the dictionary doesn't have this word", which is a broken app rather than a discreet one — the same failure D-40 prevents for saved items. See V-23.
 
 ## Process
 

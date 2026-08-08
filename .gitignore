@@ -1,0 +1,18 @@
+# Downloaded dictionary sources ARE committed — see D-41 and the phase-01
+# progress notes. Three of the four have no version history and a past version
+# cannot be re-fetched, so committing them is what makes a shipped build
+# reproducible and a fresh clone self-contained. ~30 MB, refreshed once or
+# twice a year.
+*.part
+
+# Build output
+tools/dictbuild/data/build/
+*.db
+*.db-journal
+*.db-wal
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/

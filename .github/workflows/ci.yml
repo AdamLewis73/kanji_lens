@@ -1,0 +1,84 @@
+name: CI
+
+# Plain Python. No Claude, no tokens — this spends Actions minutes, which are
+# free and unlimited on a public repository. Deliberately unrelated to
+# claude-code-review.yml, which is manual-only for the reasons in D-59.
+
+on:
+  push:
+    paths-ignore: ['**/*.md']      # doc-only pushes have nothing to build
+  pull_request:
+    paths-ignore: ['**/*.md']
+  workflow_dispatch:
+
+# A rapid series of pushes should not queue a series of builds.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.12', '3.13']
+    steps:
+      # checkout v5+ and setup-python v6+ are the first releases targeting
+      # Node 24; v4/v5 target the deprecated Node 20 and the runner warns.
+      # Do not downgrade.
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Run unit tests
+        working-directory: tools/dictbuild
+        # Stdlib unittest — the builder takes no dependencies, so CI needs no
+        # install step either.
+        run: python -m unittest discover -p 'test_*.py' -v
+
+  build:
+    name: Build and verify the dictionary
+    runs-on: ubuntu-latest
+    needs: unit
+    steps:
+      # checkout v5+ and setup-python v6+ are the first releases targeting
+      # Node 24; v4/v5 target the deprecated Node 20 and the runner warns.
+      # Do not downgrade.
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      # No fetch step: the sources are committed (D-55), so this proves the
+      # build works from a clean checkout with no network at all.
+      - name: Build kanjilens.db
+        working-directory: tools/dictbuild
+        run: python build.py
+
+      - name: Run verification cases
+        working-directory: tools/dictbuild
+        # verify.py exits non-zero if any case fails, which fails the job.
+        run: python verify.py
+
+      - name: Check the build is deterministic (D-58, V-25)
+        working-directory: tools/dictbuild
+        run: |
+          sha256sum data/build/keys.tsv.gz > first.sha
+          PYTHONHASHSEED=12345 python build.py > /dev/null
+          sha256sum -c first.sha
+
+      - name: Report size against the D-56 band
+        working-directory: tools/dictbuild
+        run: |
+          bytes=$(stat -c%s data/build/kanjilens.db)
+          mb=$(( bytes / 1048576 ))
+          echo "kanjilens.db ${mb} MB"
+          echo "### Dictionary: ${mb} MB" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$mb" -lt 90 ] || [ "$mb" -gt 115 ]; then
+            echo "::error::${mb} MB is outside the expected 90-115 MB band (D-56)."
+            echo "Re-measure per object before accepting: drop each table and"
+            echo "index in turn, VACUUM, record the delta. The total hides a"
+            echo "single table moving the wrong way."
+            exit 1
+          fi

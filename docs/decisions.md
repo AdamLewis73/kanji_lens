@@ -75,6 +75,19 @@ Scan for the relevant entry rather than reading the whole file.
 | D-44 | "Context" means kanji-in-word, not word-in-sentence | Product |
 | D-45 | Sentence-level comprehension is post-v1 | Product |
 | D-46 | No *persistent* network; one-time downloads permitted (supersedes D-03) | Product |
+| D-47 | Peek sheet shows the word and its meanings — never a reading | UI |
+| D-48 | One word screen per written form; readings are sections within it | UI |
+| D-49 | A single-character token opens the kanji screen directly | UI |
+| D-50 | Kanji screen carries only learner-usable reference; grade and radical dropped | UI |
+| D-51 | Example sentences are ingested in v1 but not rendered; decide in Phase 2 | Data |
+| D-52 | Reading alignment normalizes sound changes; unmatched spans kept as NULL | Data |
+| D-53 | Obsolete readings are ingested and displayed, marked as archaic | UI / Data |
+| D-54 | Two sense filters with opposite defaults; obscurity is ranking, not a setting | UI |
+| D-55 | The compressed source files are committed to git | Data |
+| D-56 | Dictionary storage layout: `WITHOUT ROWID` for narrow rows only | Data |
+| D-57 | Indexes are demand-driven, and column order is load-bearing | Data |
+| D-58 | The build must be byte-reproducible from identical sources | Data |
+| D-59 | CI review is manual-only; committed datasets are undiffable | Process |
 
 **Bold** entries are the ones whose violation causes silent data corruption or a forced rewrite. They are also listed in `CLAUDE.md`.
 
@@ -113,6 +126,8 @@ This teaches through pattern recognition rather than assertion, which is arguabl
 Tapping a word opens the **word screen**; tapping a component kanji on that screen opens the **kanji screen**, which has three tabs (Overview / Examples / Stroke Order).
 
 *Why the split:* radicals, stroke order, and on'yomi/kun'yomi readings are all properties of a *single character*, not of a word. 先生 has no radical — 先 has one and 生 has one. An "on'yomi of 先生" is not a meaningful concept. Trying to present per-character data on a word screen produces either nonsense or awkward compromises.
+
+*(Radicals are no longer displayed at all — D-50 — but the argument stands on stroke order and on/kun readings, which remain per-character. D-49 later carved out the one case where the split was redundant: a token that is a single character.)*
 
 Splitting them also mirrors the actual learning motion: *"what does this say?"* → *"why does it say that?"*
 
@@ -226,6 +241,8 @@ These are separate vocabulary items and a learner must be able to save, study, a
 
 *Second benefit:* this makes an open UI question free to answer later. Whether the app shows one word screen with a reading selector, or presents three separate tappable entries, becomes a pure presentation choice changeable at any time — because the underlying data already distinguishes them. Had identity been text alone, splitting later would be impossible: existing saved rows would be ambiguous about which reading the user meant.
 
+*That question was settled by D-48* — one screen per written form, readings as sections inside it. The data model here is unchanged, which is the point: the presentation was decided later and cost nothing.
+
 **D-13 — JmdictFurigana is ingested as an internal index, never rendered.**
 
 [JmdictFurigana](https://github.com/Doublevil/JmdictFurigana) is a dataset providing per-character reading alignment — it records that in 先生, 先 carries せん and 生 carries せい.
@@ -294,6 +311,211 @@ So: at save time, store **the gloss line exactly as the card displayed it** — 
 Secondary benefit: it makes export files self-describing (D-20). Importing onto a device with a different dictionary build produces usable cards rather than a list of unexplained words.
 
 *Why this cannot drift:* unlike a dictionary column, this lives in the **user** database. Adding it later is a real migration, and every word saved before that release would have a permanently empty snapshot — the gloss cannot be recovered for a word the dictionary has since removed. It must be present at the first user-data write; see the checkpoint table in `roadmap.md`.
+
+**D-51 — Example sentences are ingested in v1 but not rendered. Whether to show them is a Phase 2 decision.**
+
+The build parses **`JMdict_e_examp`** (which is `JMdict_e` *plus* examples, so it replaces rather than supplements it), populates the `example` table, and ships it. The UI renders nothing from it in v1.
+
+*Why not just render them:* coverage is thin and the number is hard to judge in the abstract.
+
+| Measured against JMdict 2026-08-06 | |
+|---|---|
+| Common senses with a sense-attached example | **41.4%** (19,357 of 46,713) |
+| Common entries with at least one example | 55.9% |
+| All senses, including rare vocabulary | 12.5% |
+
+"Four in ten senses" is not something anyone can evaluate on paper. Looking at 先生's actual screen and deciding whether it feels complete or embarrassing is — and that requires Phase 2.
+
+*Why ingest anyway rather than defer entirely:* the `<example>` elements sit **inside the `<sense>` elements the parser already walks**, so extracting them is a few extra lines rather than a separate pass. Ingesting now makes the Phase 2 question purely a UI one, with no return trip to the Python builder mid-Android-work. If the answer turns out to be no, the table is dropped on the next rebuild and nothing is lost — the dictionary is disposable (D-38).
+
+### Alternatives measured and rejected
+
+Recorded so this is not re-litigated. All figures are for **common** entries — those carrying a JMdict frequency tag, i.e. the words anyone would actually photograph.
+
+| Option | Result |
+|---|---|
+| **Tanaka Corpus** (`examples.utf`) | Better *word-level* coverage (57.3% vs 55.9%) but only **7,537** sense-tagged (word, sense) pairs against `JMdict_e_examp`'s 31,642. Most of its `B:` line tokens carry no sense number at all |
+| **Raw Tatoeba** | No English pairing in the export, no word index. Rebuilding, worse, what the other two already provide |
+| **Both combined** | **+1.7 percentage points** (41.4% → 43.2%). They are the same corpus — `JMdict_e_examp`'s examples cite Tatoeba ids, and Tanaka is Tatoeba's curated ja-en subset. `JMdict_e_examp`'s covered words are a strict *subset* of Tanaka's |
+| **JParaCrawl** (21M pairs) | Released for research purposes — a licensing problem for a shipped app |
+| **JESC** (3.2M pairs) | Freely licensed but subtitle dialogue; uneven register for learners |
+| **Japanese WordNet** | Genuinely sense-annotated, but against WordNet's sense inventory, not JMdict's. Mapping the two is a research problem |
+| **Build-time LLM sense tagging** | Technically possible — D-46 binds the app, not the desktop build. Rejected because D-46's *reasoning* is about confidently-wrong content presented as fact in a teaching app, and wrong sense assignments would be baked into the shipped dictionary, unverifiable at scale and invisible to the user |
+
+**The ceiling is roughly 43%, and it is a corpus limitation, not a sourcing mistake.** Around 57% of common senses have no attested example sentence anywhere in this data. More sentences do not help: the bottleneck is *sense annotation*, not sentence supply, and attaching an unlabelled sentence to a specific sense is word sense disambiguation (D-44).
+
+*Not affected by any of this:* the kanji Examples tab, which shows example **words** grouped by reading (D-04) and is built from JMdict plus JmdictFurigana. Its coverage is essentially complete. The product thesis does not rest on example sentences.
+
+*Phase 2 revisit:* decide whether to render, and if so whether sense-attached only or word-level too. See the checkpoint table in `roadmap.md`.
+
+**D-52 — Reading alignment normalizes sound changes. Spans that still don't match are kept with a NULL reading, never dropped and never guessed.**
+
+JmdictFurigana gives the kana a kanji carries **as it appears** in a word, which routinely differs from its dictionary reading. Matching the two is the hardest correctness problem in Phase 1 (V-17).
+
+Measured over 574,721 spans:
+
+| Matcher | Unmatched |
+|---|---:|
+| Exact comparison only | **8.00%** |
+| Plus rendaku, gemination and okurigana | **2.09%** |
+
+Three normalizations, roughly twenty lines between them:
+
+- **Rendaku** — unvoice the first mora. 花火 gives 火 → び; び unvoiced is ひ, which is 火's kun reading.
+- **Gemination** — restore the mora a trailing っ replaced. 学校 gives 学 → がっ; がっ expands to がく = カク.
+- **Okurigana** — compare against KANJIDIC2's full kun form as well as its stem, since `い.きる` may surface as either い or いきる.
+
+*Why not simply drop unmatched spans*, which was proposed and is superficially attractive at 8%: that 8% is **not a random sample**. Rendaku and gemination happen in established, frequent compounds — words erode phonetically *because* they are common. Dropping them removes 仕事 from 事's こと group, 出口 from 口's くち group, and 学校 from 学's カク group, leaving the Examples tab showing rarer words in their place. That is precisely the failure V-04 exists to prevent.
+
+*What remains at 2.09%* is two categories. **Verb stem forms** — 引き, 言い, 売り, 買い — which a conjugation rule would mostly catch, taking the residue to roughly 1.5%. And **genuinely irregular readings** KANJIDIC2 does not record at all (文 → も in 文字, 其 → そ), which no rule can derive.
+
+That irreducible remainder is handled exactly as the drop-them proposal suggested: `canonical_reading` and `reading_type` are **NULL**, so the span joins no reading group and never appears on the Examples tab. The idea was right; it was only wrong applied to the whole 8% rather than the 2% that is actually irreducible.
+
+*Why NULL rather than deletion:* it makes a silent failure countable. `SELECT count(*) FROM kanji_in_word WHERE reading_type IS NULL` is the build health check (V-22). A future build whose residue jumps from 2% to 20% says so, instead of quietly shipping a thinner Examples tab. Deleting the rows destroys that evidence; guessing a reading manufactures wrong data.
+
+**D-53 — Obsolete readings are ingested and displayed, marked as archaic.**
+
+JMdict tags out-dated kana with `&ok;` on the reading. 上手 carries じょうて and じょうしゅ, real historical readings nobody uses today.
+
+They are kept, and shown on the word screen alongside current readings — visually distinguished, not hidden.
+
+*Why:* this is a **scanning** app. Someone photographing an inscription at a temple, an old shopfront, or a period text is exactly the person who needs じょうしゅ, and that is a genuine use of the product rather than a hypothetical. Hiding the reading would leave them with no explanation for what is in front of them.
+
+*And we could not act on the distinction anyway.* D-48 shows every reading of a written form, because the app cannot know which one applies (D-44). There is no point at which the app knows a user "scanned the archaic reading" — it only knows they scanned 上手.
+
+Presentation — how strongly to mark it, what wording — is a Phase 2 design question. V-21 covers the failure mode: an obsolete reading rendered identically to a current one teaches kana nobody uses.
+
+**D-54 — Two sense filters with opposite defaults. Obscurity is a ranking rule, not a user setting.**
+
+JMdict is a general-purpose dictionary and records how words are actually used. 生 (なま) carries a sense referring to unprotected sex, directly below "raw; uncooked; fresh."
+
+Two user-facing toggles, and the defaults deliberately differ because the risks are not symmetric:
+
+| Toggle | Tags | Senses | Default | Reasoning |
+|---|---|---:|---|---|
+| Show explicit content | `vulg` `sens` `derog` `X` | ~900 | **off** | Showing by default risks an unpleasant surprise; hiding costs almost nothing |
+| Show slang & colloquial | `sl` `col` | ~3,900 | **on** | Signage, menus and manga are full of casual language. Hiding it by default means failing to explain text the user is looking at |
+
+**Obscurity is a separate concern and not a setting.** `arch` (3,787), `obs` (736) and `rare` (3,144) look like the same category but describe *usefulness*, not offence. They get a ranking rule instead:
+
+- **On a word's own screen — show every sense**, archaic included. The user opened that word specifically and deserves the complete picture.
+- **In example lists — never lead with them.** The kanji Examples tab must not surface obscure vocabulary (V-04).
+
+Note this is about *word* selection, not reading identification. The app never knows which reading was scanned (D-53), and none of these rules require it to.
+
+**The rule that stops the filter backfiring: never filter a word to zero senses.** If every sense of a scanned word is tagged, show them regardless. Filtering to nothing turns a real word into "not found", which reads as a broken app rather than a discreet one — the same failure D-40 prevents for saved items. Covered by V-23.
+
+All these tags live on `word_sense.misc`, so every one of these policies is a query-time decision. Changing any of them never requires a rebuild.
+
+**D-55 — The compressed source files are committed to git.**
+
+About 29 MB across four files, in `tools/dictbuild/data/raw/`.
+
+*Why:* three of the four sources are published at fixed URLs and regenerated continuously — **a past version cannot be re-fetched** (D-41). Committing them is therefore the only mechanism that makes a shipped build reproducible, and it makes a fresh clone self-contained with no download step.
+
+*Why the cost is acceptable:* refreshes happen at defined events, once or twice a year (D-41), so history growth is bounded. Every file is well under GitHub's 50 MB per-file warning.
+
+*One non-obvious requirement.* `.gitattributes` marks the directory `-text`. Without it git rewrites LF to CRLF on Windows checkouts, changing the bytes of `JmdictFurigana.txt` and therefore its SHA-256 — so the file would fail the verification in `sources.lock.json` on a fresh clone, defeating the entire purpose. Also `-diff`, since a binary diff of a 13 MB gzip helps nobody.
+
+*If this is ever reversed:* removing large files from git means rewriting history. Adding them was the cheap direction; that asymmetry is why the decision waited until real sizes were known.
+
+**D-56 — Dictionary storage layout: `WITHOUT ROWID` for narrow rows, plain tables for wide ones. Measured per object, never by the total.**
+
+The dictionary went from **126.2 MB to 99.7 MB on disk** (45.4 → 30.3 MB gzipped) with **no row removed** — identical counts in every table before and after. All of it is physical layout.
+
+| Object | Before | After | Change | Cause |
+|---|---:|---:|---:|---|
+| `kanji_in_word` | 32.9 MB | 21.7 MB | **−11.2** | `WITHOUT ROWID` |
+| `idx_word_reading` | 8.3 MB | — | **−8.3** | dropped, D-57 |
+| `word_sense` | 29.0 MB | 23.0 MB | **−6.0** | `WITHOUT ROWID` |
+| `strokes` | 7.5 MB | 6.3 MB | −1.2 | coordinate rounding |
+| `kanji` | 1.1 MB | 0.9 MB | −0.2 | `WITHOUT ROWID` |
+| `idx_kiw_group` | 11.7 MB | 12.5 MB | +0.8 | cost of the above |
+| `word`, `example` | | unchanged | | integer primary keys |
+
+### Why `WITHOUT ROWID` helps here
+
+SQLite gives every table a hidden auto-numbered `rowid` and stores rows in a b-tree keyed by it. Declaring a `PRIMARY KEY` over *real* columns then builds a **second** b-tree so rows can be found by that key — and that second tree holds another copy of the key columns.
+
+`kanji_in_word` is keyed on `(kanji_char, word_id, position)` across 574,721 rows, so those columns existed twice. `WITHOUT ROWID` stores the rows directly in the key tree: one tree instead of two. In relational terms, a clustered index rather than a heap plus a secondary index.
+
+Applied to `kanji`, `word_sense`, `kanji_in_word`, `changes` and `meta`.
+
+**Not applied to `word` or `example`** — their primary key *is* `INTEGER PRIMARY KEY`, which already means the rowid, so there is nothing to collapse.
+
+### The exception, and how it was found
+
+**`strokes` is deliberately a plain table.** Making it `WITHOUT ROWID` cost **3.4 MB**, swamping the 1.2 MB the coordinate rounding saved.
+
+A `WITHOUT ROWID` table stores row content in the primary-key b-tree, so wide rows land on *interior* pages and inflate the tree. `svg_paths` averages ~1 KB per row — by far the widest column in the schema. SQLite's own guidance is that the layout suits small rows; this is the one table here that is not.
+
+**This was invisible in the total.** The aggregate said "down 21.5 MB, job done" while one table quietly moved 3.4 MB the wrong way. The measurement that found it — drop each object, `VACUUM`, record the delta — is the method to repeat before trusting any future layout change.
+
+### Coordinate rounding
+
+KanjiVG stores stroke paths to two decimals on a 109-unit canvas. The second decimal is 0.009% of the canvas, under a tenth of a pixel at any size a phone renders. Rounding to one decimal removes ~19% of the path text.
+
+**This is the only lossy change in the build.** Everything else is exact. If stroke rendering ever looks wrong at very large sizes, this is the first thing to suspect and a one-line revert in `ingest_kanjivg.py`.
+
+### Reverting any of this
+
+All of it is contained in `schema.sql` plus `ingest_kanjivg.py`, and the dictionary is disposable (D-38) — change the file, rebuild, ship. No migration, no user-data risk. Re-measure per object afterwards rather than trusting the total.
+
+**D-57 — Indexes are added when a feature needs them, and column order is load-bearing.**
+
+Two lessons from the same table, both expensive, both recorded so they are not repeated.
+
+### No speculative indexes
+
+`idx_word_reading` indexed `word.reading` — a sorted copy of that column across 322,323 rows, **8.3 MB**, about 7% of the database. It would serve looking a kanji word up *by* its reading (typing せんせい to find 先生).
+
+**No v1 feature does that.** The scan pipeline always arrives with the written form from OCR, and for kana-only words `text` equals `reading` so the existing `UNIQUE (text, reading)` already covers them.
+
+Dropped. One line to restore if a kana search box appears.
+
+### Column order decides whether an index is used at all
+
+`idx_kiw_group` was originally `(kanji_char, reading_type, reading_group)`, and the Examples-tab query filtered `reading_type IS NOT NULL`. **SQLite compiles `IS NOT NULL` into a RANGE condition**, and a range on the second column stops the third being usable for equality — so the query scanned every row for the kanji and filtered in memory.
+
+The predicate was redundant anyway: `reading_group` is NULL exactly when `reading_type` is.
+
+Fixing the plan alone was not enough. Ordering by the word's own `freq_rank` still meant joining every row in the group and sorting in a temp b-tree before `LIMIT` could apply, so cost scaled with group size — and the largest groups belong to the commonest kanji, which are the screens users open most. 生/セイ holds 1,462 rows, 手/て holds 1,835.
+
+So `word_freq` is denormalized into `kanji_in_word` and the index carries it third, making the query an ordered index scan that stops after N rows:
+
+> **10.94 ms → 0.079 ms**, identical results. A 138× difference on the app's core screen.
+
+Unranked words are stored as `9999` rather than NULL so a plain ascending scan orders them last (V-04) without a `NULLS LAST` clause the index cannot use.
+
+*The general rule:* check `EXPLAIN QUERY PLAN` for every query the app actually runs, and confirm the plan contains no `USE TEMP B-TREE`. All six current lookup patterns were verified this way.
+
+**D-58 — The build must produce a byte-identical database from identical sources.**
+
+`build_id` is a hash of the source checksums (D-41), so a build from unchanged inputs is *labelled* unchanged. That label is a lie if the output actually varies, and the `changes` diff (D-39) would then report churn between builds that changed nothing.
+
+**The rule: never let unordered iteration decide a stored value.**
+
+The bug that produced this decision: a surface reading can match several readings of the same kanji — 一 is both イチ and イツ, and いっ geminates from either. The matcher iterated a Python `set` of candidates, and **string hashing is randomised per process**, so the winner varied between runs. 一生 resolved to イチ on one build and イツ on the next, from byte-identical inputs.
+
+Nothing errors. Both are real readings of 一. The word simply lands in a different reading group depending on which process built the dictionary.
+
+The fix is also more correct: iterate KANJIDIC2's reading list, which is ordered with the primary reading first, and test membership in the candidate set rather than the reverse. Verified identical across three `PYTHONHASHSEED` values. Covered by V-25.
+
+*Applies to any future ingest stage.* Sets and dicts keyed on strings are fine as lookups; they must not decide which of several candidates gets written.
+
+**D-59 — GitHub review runs only on manual trigger, and committed datasets must be undiffable.**
+
+`claude-code-review.yml` originally triggered on `pull_request: [opened, synchronize, ready_for_review, reopened]`, which starts a full review on **every push to a PR branch**. PR #7 accumulated **eleven runs**. The last two, immediately after ~29 MB of dictionary sources were committed (D-55), ran **18m20s and 9m18s** — the reviewer was reading through the data files. That consumed a large share of a token budget in minutes.
+
+Three layers, all required:
+
+1. **`workflow_dispatch` only**, with a `pr_number` input, plus `--max-turns 40` as a ceiling that holds even if the exclusions fail. Do not restore a `pull_request` trigger; if automatic review is ever wanted, scope it with `paths` to source code only.
+2. **The prompt names the excluded paths** and instructs the reviewer not to open them.
+3. **`.gitattributes` marks them `-diff linguist-generated`.** This is the layer that matters most, because it protects *any* tool reading the repository rather than one workflow. Verified: the 12 MB `JmdictFurigana.txt` reports "Binary files differ" instead of emitting its contents.
+
+`CLAUDE.md` carries a do-not-read table so a local session does not repeat it either. `inspect_sources.py` is the supported way to examine those files' structure.
+
+*Note the asymmetry that made this expensive:* committing the datasets (D-55) was a sound decision, but it combined with an automatic reviewer to produce a cost neither change implied on its own. Any future decision to commit large files should check what reads them automatically.
 
 ---
 
@@ -390,6 +612,8 @@ Lists are organizational tags. Review sessions may *filter* by list ("review onl
 **D-30 — The peek sheet and the word screen are a single component.**
 Material 3's `ModalBottomSheet` supports partial and full expansion. The partial (peek) state shows word, reading, meaning, a Save action, and a "Full Details" button. Dragging it up — or tapping Full Details — expands the same sheet into the complete word screen.
 
+*(The reading was later removed from the peek state — see D-47. The single-expanding-component claim below is unaffected.)*
+
 *Why:* the original design described a popup plus a separate full-screen detail view. Making them one expanding sheet means the user never loses their place in the scanned image, the gesture is natural and reversible, and the project builds one component instead of two.
 
 **D-31 — Peek only on the scan screen.**
@@ -436,6 +660,12 @@ Since JmdictFurigana is what powers the grouping (D-13), its hiragana readings m
 
 *Scope note:* this governs **reading labels only.** Furigana displayed over words stays hiragana in all cases (D-14) — that is a separate convention and the two must not be conflated.
 
+**Exception found during ingest: ~60 kun'yomi are legitimately katakana.** Japanese writes loanwords in katakana, and KANJIDIC2 preserves that for kanji whose word-level reading is a loanword — Meiji-era unit ateji (粁 キロメートル, 吋 インチ, 瓩 キログラム) and chemical elements (鋁 アルミニウム, 鉑 プラチナ).
+
+This is not confined to obscure characters. 志 (frequency rank 823) reads both こころざし *ambition* and シリング *shilling*; 粉 (1,484) reads こな *powder* and デシメートル.
+
+So the rule is **preserve KANJIDIC2's script for kun readings**, not force them to hiragana. Converting would render 志's reading as しりんぐ, which nobody writes. The conversion this decision does require runs the other way — JmdictFurigana's hiragana to katakana where a reading is an on'yomi. See V-24.
+
 **D-40 — A saved item that cannot be resolved is always rendered. It never disappears.**
 
 If the dictionary cannot resolve a saved item's `(text, reading)`, the app shows the card anyway — with the text, the reading, the review history, and an explanation — rather than omitting it from the list.
@@ -447,3 +677,71 @@ The rule holds **independently of D-39.** Even with an empty or missing `changes
 Worth stating plainly: a dictionary update **cannot** delete a user's saved word. The two databases are separate (D-09) and the dictionary has no write access to user data. Vanishing is only ever something the app chooses to display — which is why it is a rendering rule.
 
 Paired with D-43, which ensures such a card still has a meaning to show.
+
+**D-47 — The peek sheet shows the word and its meanings. It never shows a reading.**
+
+*Refines D-30*, which described the peek state as showing "word, reading, meaning" — the reading is removed.
+
+> **上手**
+> skillful; proficient · upper part · stage left
+> `[Save]` `[Full Details]`
+
+*Why:* the reading shown would be the tokenizer's guess, and 上手 has five. A learner who knew which one applied would not be scanning it. Presenting a guessed reading as fact teaches something possibly false to precisely the person who cannot detect the error.
+
+**This holds even when the word has only one reading.** Showing せんせい for 先生 would be safe and useful in isolation, but a peek sheet that sometimes carries a reading and sometimes doesn't is unpredictable, and the user has no way to know which case they are looking at. Consistency is worth more than the information.
+
+Readings appear on the word screen (D-48), where every one is shown together and none is asserted as *the* answer.
+
+**D-48 — One word screen per written form. Readings are sections inside it, not separate screens.**
+
+D-12 deliberately left this open: *"whether the app shows one word screen with a reading selector, or presents three separate tappable entries, becomes a pure presentation choice."* This settles it. The data model is unchanged — identity remains `(text, reading)` — only the presentation is decided.
+
+Layout, in order:
+
+```
+上手
+  じょうず  skillful; proficient; good (at); adept
+            彼は文章を書くのが上手であるとわかった。
+            He proved to be a good writer.
+  うわて    upper part
+  かみて    stage left
+Composed of:  上 above, up    手 hand
+```
+
+Each reading is a heading; its meanings sit under it; its example sentences sit under those. **Component chips come last**, below every reading.
+
+*Why chips last:* the examples belong to the meanings and must sit next to them. The chips are reference material — the answer to "what is this made of?", which is a follow-up question to "what does this say?"
+
+*Cost, accepted:* the chips are the only route to the kanji screen (D-05), so burying them adds scrolling to a core drill-down. Judged worth it, because a user who wants the kanji breakdown is already engaged and will scroll; a user who just wants the meaning should not have to scroll past the breakdown to reach it.
+
+*Why one screen rather than three:* the app cannot tell which reading applies (D-44), so presenting three tappable entries asks the user a question they came here to have answered. One screen shows the alternatives side by side and lets the sentence context decide.
+
+**D-49 — A single-character token opens the kanji screen directly, skipping the word screen.**
+
+生 scanned alone is a word — several, in fact — *and* a kanji. Routing it through a word screen produced two screens headed 生, both listing readings, connected by a lone component chip pointing at a screen that looked like the one you were already on.
+
+So: **a single-character token opens the kanji screen**, with the character's word senses shown in the Overview tab under an "As a word" heading, each with its own example sentences. Multi-character words are unaffected — 先生 still opens a word screen and still drills into 生 via a chip, arriving at *the same* kanji screen.
+
+One kanji, one screen, reached from either direction.
+
+*Why not merge the two screen types entirely:* 先生 has no stroke order of its own and no single set of on/kun readings — 先 has one set, 生 has another. A merged screen would need nested per-character tabs inside a bottom sheet, which is exactly the "nonsense or awkward compromises" D-05 exists to avoid.
+
+*Cost:* one branch in navigation — single-character tokens route differently. A few lines of code, and a rule statable in one sentence.
+
+*Note on scope:* the "As a word" section carries example sentences, but the **Examples tab remains words-grouped-by-reading (D-04, unchanged)**. Sentences attach to *words* and appear wherever word data appears. They never attach to a kanji as a character, because no dataset records which sense a kanji contributes inside a compound (D-44).
+
+**D-50 — The kanji screen carries only reference a learner can use. Grade and radical are dropped.**
+
+Removed from the Overview tab:
+
+- **School grade** — the Japanese school year in which the kanji is taught. Real information, but the label means nothing to a non-Japanese learner, and it would need explaining to earn its space.
+- **Classical radical** — the index component used to look kanji up in *paper* dictionaries. Near-zero utility for someone who will never use one. KANJIDIC2 also stores it as a bare number (`100`), so displaying it at all would require sourcing a 214-entry number→glyph table; dropping it removes that task entirely.
+- **JLPT level** — already removed by D-42, but `ux.md` still listed it.
+
+**Stroke count moves to the Stroke Order tab**, where it is self-explanatory and sits beside the thing it describes.
+
+*Why:* "5 strokes · Grade 1 · Radical 100" is three facts, two of which are unreadable to the audience. A reference screen that requires its own key is not reference, it is clutter.
+
+The visual-component question — *what pieces is this kanji built from?* — is the genuinely useful version of "radical", and it is deferred separately in `roadmap.md` (KRADFILE), where the obstacle is component *naming* rather than data.
+
+*Consequence:* Overview would be left holding only meanings and readings, which is thin. D-49 refills it with the "As a word" section for kanji that are also standalone words.

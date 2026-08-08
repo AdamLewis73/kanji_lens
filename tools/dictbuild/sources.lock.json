@@ -1,0 +1,53 @@
+{
+  "generated_at": "2026-08-07T05:15:12+00:00",
+  "sources": [
+    {
+      "name": "jmdict",
+      "url": "http://ftp.edrdg.org/pub/Nihongo/JMdict_e_examp.gz",
+      "filename": "JMdict_e_examp.gz",
+      "license": "CC BY-SA 4.0 (EDRDG)",
+      "versioning": "none",
+      "version": null,
+      "bytes": 13013324,
+      "sha256": "977dd99f13fa86b26966de729bbbe9bdc0bcfcfa65a167c9322458149295eb82",
+      "header_date": "2026-08-06",
+      "fetched_at": "2026-08-07T05:15:12+00:00"
+    },
+    {
+      "name": "kanjidic2",
+      "url": "http://www.edrdg.org/kanjidic/kanjidic2.xml.gz",
+      "filename": "kanjidic2.xml.gz",
+      "license": "CC BY-SA 4.0 (EDRDG)",
+      "versioning": "none",
+      "version": null,
+      "bytes": 1488565,
+      "sha256": "22ef6038f6c64ea32a0b5f229005384b94b45ad3cb4747f8e6dc99c6a7aaffa1",
+      "header_date": "2026-08-06",
+      "fetched_at": "2026-08-07T05:15:12+00:00"
+    },
+    {
+      "name": "kanjivg",
+      "url": "https://github.com/KanjiVG/kanjivg/releases/download/r20250816/kanjivg-20250816.xml.gz",
+      "filename": "kanjivg-20250816.xml.gz",
+      "license": "CC BY-SA 3.0",
+      "versioning": "tagged",
+      "version": "r20250816",
+      "bytes": 3608178,
+      "sha256": "b36579789775ea912d5e98356bf243f54fb953fa3b58a16c2d6995f252e2a3e2",
+      "header_date": null,
+      "fetched_at": "2026-08-07T05:15:12+00:00"
+    },
+    {
+      "name": "jmdictfurigana",
+      "url": "https://github.com/Doublevil/JmdictFurigana/releases/download/2.3.1%2B2026-07-25/JmdictFurigana.txt",
+      "filename": "JmdictFurigana.txt",
+      "license": "CC BY-SA (derived from JMdict)",
+      "versioning": "tagged",
+      "version": "2.3.1+2026-07-25",
+      "bytes": 12134143,
+      "sha256": "2d5a6a11195ecfbaa56586720fa4e869e5db146eb2973683161fa54fce3936d7",
+      "header_date": null,
+      "fetched_at": "2026-08-07T05:15:12+00:00"
+    }
+  ]
+}
