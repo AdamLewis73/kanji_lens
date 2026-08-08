@@ -48,7 +48,8 @@ def _load_readings(db: sqlite3.Connection) -> dict[str, dict]:
         for r in kun:
             by_stem.setdefault(kana.strip_okurigana(r), []).append(r)
             by_full[kana.full_reading(r)] = r
-        out[char] = {"on": set(json.loads(on_json)), "stem": by_stem, "full": by_full}
+        # `on` stays a LIST, in KANJIDIC2's order — see match() for why.
+        out[char] = {"on": json.loads(on_json), "stem": by_stem, "full": by_full}
     return out
 
 
@@ -68,34 +69,45 @@ def match(surface: str, okurigana: str, readings: dict) -> tuple[str | None, str
     """Resolve a surface reading to (canonical_reading, 'on' | 'kun'), or
     (None, None) when nothing matches.
 
-    Order matters. on'yomi is tried first because it accounts for ~69% of spans.
-    The full kun form is tried before the bare stem so that 生きる resolves to
-    い.きる rather than the ambiguous い, which 生 shares across い.きる,
+    Order matters twice over.
+
+    Between reading types: on'yomi is tried first because it accounts for ~69%
+    of spans, and the full kun form before the bare stem so that 生きる resolves
+    to い.きる rather than the ambiguous い, which 生 shares across い.きる,
     い.かす and い.ける.
+
+    WITHIN a type, iteration walks the KANJIDIC2 reading list rather than the
+    candidate set, and this is not a stylistic choice. A surface reading can
+    match several readings of the same kanji: 一 is both イチ and イツ, and いっ
+    geminates from either. Iterating the candidate SET made the winner depend on
+    Python's per-process string hash seed, so two builds of identical sources
+    could disagree — 一生 resolving to イチ one run and イツ the next.
+
+    Walking the source's own list is deterministic AND uses its priority:
+    KANJIDIC2 lists the primary reading first, which is why 一生 should be イチ.
     """
     candidates = kana.variants(surface)
+    kata = {kana.to_katakana(c) for c in candidates}
+    hira = {kana.to_hiragana(c) for c in candidates}
 
-    for c in candidates:
-        k = kana.to_katakana(c)
-        if k in readings["on"]:
-            return k, "on"
+    for reading in readings["on"]:
+        if reading in kata:
+            return reading, "on"
 
     # A kun reading including its okurigana, either because the word supplies it
     # (生きる at position 0 -> い + きる) or because JmdictFurigana attributed the
-    # whole inflected form to the kanji.
-    for c in candidates:
-        h = kana.to_hiragana(c)
-        for full in ((h + okurigana) if okurigana else h, h):
-            if full in readings["full"]:
-                return readings["full"][full], "kun"
+    # whole inflected form to the kanji. dicts preserve insertion order, so this
+    # walks KANJIDIC2's order too.
+    wanted = {h + okurigana for h in hira} | hira if okurigana else hira
+    for full, reading in readings["full"].items():
+        if full in wanted:
+            return reading, "kun"
 
-    for c in candidates:
-        h = kana.to_hiragana(c)
-        if h in readings["stem"]:
-            forms = readings["stem"][h]
+    for stem, forms in readings["stem"].items():
+        if stem in hira:
             # Unambiguous stem -> store the specific reading; otherwise the stem
             # itself, which is genuinely what the kanji carries.
-            return (forms[0] if len(forms) == 1 else h), "kun"
+            return (forms[0] if len(forms) == 1 else stem), "kun"
 
     return None, None
 

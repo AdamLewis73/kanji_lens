@@ -124,6 +124,25 @@ Check 志 specifically: it is a common kanji, so the damage is visible to ordina
 
 Expect **about 60** katakana kun readings across the whole table. The build reports the count and flags above 100 (`kun_katakana_loanword`). Zero means something is converting them; a large jump means the source changed.
 
+### V-25 · The build is deterministic (D-41)
+
+Identical sources must produce an identical database. `build_id` is a hash of the source checksums, so a build that changes nothing is *labelled* as changing nothing — which is a lie if the output actually varies.
+
+Rebuild the alignment with different `PYTHONHASHSEED` values and hash the result:
+
+```bash
+for seed in 1 2 3; do PYTHONHASHSEED=$seed python build.py --only furigana; done
+# then hash: kanji_char, word_id, position, canonical_reading, reading_type
+```
+
+All three must agree.
+
+**The trap this caught.** A surface reading can match several readings of the same kanji — 一 is both イチ and イツ, and いっ geminates from either. The matcher originally iterated a Python `set` of candidates, and string hashing is randomised per process, so the winner varied between runs. 一生 resolved to イチ on one build and イツ on the next, from byte-identical inputs.
+
+Nothing errors. Both are real readings of 一. The word simply lands in a different reading group on the Examples tab depending on which process built the dictionary, and the `changes` diff (D-39) would report spurious churn between builds that changed nothing.
+
+The fix — iterate KANJIDIC2's reading list rather than the candidate set — is also more correct, since that list is ordered with the primary reading first.
+
 ### V-22 · Reading-alignment residue stays within bounds (D-52, V-17)
 
 A build-health assertion rather than a content check, and the mechanism that makes V-17's silent failures visible.

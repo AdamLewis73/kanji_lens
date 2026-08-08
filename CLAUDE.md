@@ -35,6 +35,18 @@ Violating any of these destroys user data or forces a rewrite. Each links to ful
 | Phases, decision checkpoints, deferred backlog | `docs/roadmap.md` |
 | Current state of work in flight | `docs/progress/` |
 
+## Do not read these paths
+
+Committed on purpose (D-55), but they are third-party data and generated artifacts, never project code. Opening one wastes a large amount of context for nothing:
+
+| Path | What |
+|---|---|
+| `tools/dictbuild/data/` | ~29 MB of JMdict, KANJIDIC2, KanjiVG, JmdictFurigana sources |
+| `tools/dictbuild/baseline/` | 3.5 MB generated key list for the `changes` diff |
+| `*.db`, `*.gz`, `*.tsv` | build output and compressed data |
+
+To inspect their *structure*, use `tools/dictbuild/inspect_sources.py`, which prints small representative samples. `.gitattributes` marks them binary so diffs stay collapsed.
+
 ## Conventions
 
 - **Reference decisions by ID** in commits and code comments: `per D-07`.

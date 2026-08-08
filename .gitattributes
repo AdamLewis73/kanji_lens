@@ -1,8 +1,27 @@
 # Dictionary source files are committed verbatim so that a shipped build can be
-# reproduced exactly (D-41). Three of the four sources have no version history —
-# a past JMdict cannot be re-fetched — so these files ARE the version record.
+# reproduced exactly (D-41, D-55). Three of the four sources have no version
+# history — a past JMdict cannot be re-fetched — so these files ARE the version
+# record.
 #
 # `-text` disables all line-ending conversion. Without it git would rewrite LF
 # to CRLF on Windows checkouts, changing the bytes and therefore the SHA-256
 # recorded in sources.lock.json — defeating the entire point of committing them.
-tools/dictbuild/data/raw/** -text -diff
+#
+# `-diff` marks them binary for diff purposes, so `git diff`, the GitHub PR view
+# and the API all report "Binary files differ" instead of emitting 12 MB of
+# furigana alignments. This matters beyond readability: an automated reviewer
+# reading these files consumed an entire token budget in a single run before the
+# review workflow was made manual-only.
+#
+# `linguist-generated` additionally collapses them in the GitHub PR view and
+# excludes them from language statistics.
+
+tools/dictbuild/data/**      -text -diff linguist-generated
+tools/dictbuild/baseline/**  -text -diff linguist-generated
+
+# Generated artifacts, wherever they land.
+*.db      -text -diff linguist-generated
+*.db-wal  -text -diff
+*.db-journal -text -diff
+*.gz      -text -diff linguist-generated
+*.tsv     -text -diff linguist-generated

@@ -31,6 +31,16 @@ from pathlib import Path
 # kvg:kanji_04e00-Kaisho   -> calligraphic variant, skipped
 _KANJI_ID = re.compile(r"^kvg:kanji_([0-9a-f]+)$")
 
+# KanjiVG stores coordinates to two decimals on a 109-unit canvas. The second
+# decimal is 0.009% of the canvas — well under a tenth of a pixel at any size a
+# phone renders — so it is precision nobody can see, costing 19% of the path data.
+_DECIMAL = re.compile(r"\d+\.\d+")
+
+
+def _round_coords(d: str) -> str:
+    return _DECIMAL.sub(
+        lambda m: f"{float(m.group()):.1f}".rstrip("0").rstrip("."), d)
+
 
 def parse(path: Path):
     """Yield (character, [path data strings in stroke order])."""
@@ -42,7 +52,8 @@ def parse(path: Path):
             if m:
                 # iter() walks the whole subtree in document order, which
                 # flattens the component <g> nesting back into stroke order.
-                paths = [p.get("d") for p in el.iter("path") if p.get("d")]
+                paths = [_round_coords(p.get("d"))
+                         for p in el.iter("path") if p.get("d")]
                 yield chr(int(m.group(1), 16)), paths
             el.clear()
 

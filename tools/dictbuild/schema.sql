@@ -30,7 +30,7 @@ CREATE TABLE kanji (
                                         --   miscounts, not alternatives (V-09).
     freq_rank     INTEGER               -- Mainichi Shimbun rank, top 2,501 only; NULL otherwise
                                         -- no grade, no radical (D-50); no jlpt (D-42)
-);
+) WITHOUT ROWID;
 
 
 -- ------------------------------------------------------------------ words
@@ -71,7 +71,10 @@ CREATE TABLE word (
 -- This also settles the FTS5 question: longest-match (D-07) works by taking
 -- substrings s[i:i+1] … s[i:i+n] at each position and looking each up exactly.
 -- That is N indexed equality lookups, not a text search. FTS5 buys nothing.
-CREATE INDEX idx_word_reading ON word (reading);   -- for kana input / furigana search
+-- No index on `reading` alone. It would serve looking a kanji word up BY its
+-- reading (typing せんせい to find 先生), and no v1 feature does that — the scan
+-- pipeline always arrives with the written form. It cost 8.3 MB, about 7% of the
+-- database. One line to add back if a kana search box ever appears.
 
 
 CREATE TABLE word_sense (
@@ -86,7 +89,7 @@ CREATE TABLE word_sense (
                                         --   Carries the tags any sensitive-sense filtering
                                         --   policy would need. Ingested, never yet filtered.
     PRIMARY KEY (word_id, sense_order)
-);
+) WITHOUT ROWID;
 
 -- Senses restricted by <stagk>/<stagr> attach ONLY to the (text, reading) rows
 -- they apply to. 明日 is the worked case: its "near future" sense is stagr-bound
@@ -138,7 +141,7 @@ CREATE TABLE kanji_in_word (
     reading_type      TEXT,              -- 'on' | 'kun' | NULL when unmatched
     word_freq         INTEGER NOT NULL,  -- word.freq_rank denormalized, NULL as 9999
     PRIMARY KEY (kanji_char, word_id, position)
-);
+) WITHOUT ROWID;
 
 -- Why reading_group exists as a column rather than being derived.
 --
@@ -191,7 +194,7 @@ CREATE TABLE strokes (
     kanji_char TEXT PRIMARY KEY REFERENCES kanji(char),
     svg_paths  TEXT NOT NULL   -- JSON array of path 'd' strings, in drawing order.
                                -- Length must equal kanji.stroke_count (V-09).
-);
+) WITHOUT ROWID;
 
 
 -- ------------------------------------------------------ build bookkeeping
@@ -207,7 +210,7 @@ CREATE TABLE changes (
     new_reading TEXT,
     build_id    TEXT NOT NULL,      -- the build in which it disappeared
     PRIMARY KEY (old_text, old_reading)
-);
+) WITHOUT ROWID;
 
 
 -- One row. Lets the app detect an asset upgrade, and records exactly which
@@ -219,4 +222,4 @@ CREATE TABLE meta (
                                     --   from sources.lock.json. The header date is the
                                     --   real version identifier — three of the four
                                     --   sources have no version history at all.
-);
+) WITHOUT ROWID;

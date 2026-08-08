@@ -1,11 +1,11 @@
 # Phase 1 — Dictionary Builder
 
-**Status:** in progress — build complete, verified and attributed; size review remains
+**Status:** Phase 1 complete — build, verification, attribution and size review all done
 **Updated:** 2026-08-07
 
 ## Current state
 
-`tools/dictbuild/` builds a 126 MB `kanjilens.db` in about 45 seconds: `kanji`, `word`, `word_sense`, `example`, `kanji_in_word`, `meta`. All four parsers are in, plus the `changes` diff and a verification harness. Only the size review remains.
+`tools/dictbuild/` builds a 104.7 MB `kanjilens.db` in about 45 seconds: `kanji`, `word`, `word_sense`, `example`, `kanji_in_word`, `meta`. All four parsers are in, plus the `changes` diff and a verification harness. Nothing outstanding.
 
 ```
 python fetch.py     # sources from the pinned manifest (D-41)
@@ -83,9 +83,10 @@ Combining adds **1.7 points**, because they are the same corpus — `JMdict_e_ex
 
 ## Next action
 
-**The size review.** 126 MB, which lands in the APK alongside Kuromoji's
-IPADIC and a bundled ML Kit model (D-46). Nothing else in Phase 1 is
-outstanding.
+**Phase 2** — the Android app with a text box. Nothing in Phase 1 is
+outstanding. Size settled at 104.7 MB on disk / 30.4 MB gzipped, so the APK
+contribution is 30 MB and the device footprint about 135 MB once Room
+extracts the asset.
 
 ## Done
 
@@ -103,7 +104,7 @@ outstanding.
 - [x] `meta` table with build id and per-source header dates (D-41)
 - [x] `changes` table + key-set diff against previous build (D-39, V-19)
 - [x] Indexes for lookup patterns — all six verified by EXPLAIN QUERY PLAN
-- [ ] Output size measured and recorded below
+- [x] Output size measured — **104.7 MB on disk, 30.4 MB gzipped**
 - [x] Attribution text collected — `docs/attribution.md`
 - [x] Verification harness — `verify.py`, **10 of 10 cases pass**
       *(V-05 is a review check with no user DB yet; V-21 and V-23 are Phase 2 UI cases)*
@@ -131,3 +132,46 @@ outstanding.
 - **Kana script matters (D-37).** The hard part isn't the script conversion, it's deciding *which* readings are on'yomi when the surface kana has been altered by rendaku or gemination. 学校 = がっこう, not がくこう. See V-17 for the two silent failure modes.
 - **A JMdict entry is not a word.** Expanding one into `(text, reading)` rows by cross-product invents words that don't exist. See V-18.
 - This script is the most portable asset in the project. It produces a plain SQLite file usable on Android, iOS, or anywhere else.
+
+## Size breakdown
+
+Measured by dropping each object and re-VACUUMing, on the 126 MB build before
+trimming:
+
+| Object | Size | Share |
+|---|---:|---:|
+| `kanji_in_word` | 32.9 MB | 26% |
+| `word_sense` | 29.0 MB | 23% |
+| `word` | 27.6 MB | 22% |
+| `idx_kiw_group` | 11.7 MB | 9% |
+| `idx_word_reading` | 8.3 MB | 7% |
+| `strokes` | 7.5 MB | 6% |
+| `example` | 7.4 MB | 6% |
+
+`kanji_in_word` held only 3.1 MB of actual reading text against 32.9 MB stored,
+and `word` 3.2 MB against 27.6 MB — a 10x and 8.6x ratio. Tables with a
+composite `PRIMARY KEY` or `UNIQUE` constraint store every row twice, once in
+the hidden rowid b-tree and once in the auto-index.
+
+What was taken, none of it costing v1 functionality:
+
+| Change | Saved |
+|---|---:|
+| `WITHOUT ROWID` on six tables | 7.4 MB, and queries got faster |
+| Dropped `idx_word_reading` | 8.3 MB — no v1 feature looks a word up by reading |
+| SVG coordinates to 1 decimal place | 1.2 MB — 0.009% of a 109-unit canvas |
+| (VACUUM already in the build) | |
+
+**126.2 MB -> 104.7 MB on disk, 45.4 MB -> 30.4 MB gzipped.**
+
+Not taken, and both remain available:
+
+- **Excluding `example` from the shipped asset** would save 8.1 MB. It renders
+  nowhere in v1 (D-51), but shipping it keeps the Phase 2 decision a pure UI
+  question, which was D-51's whole point.
+- **Trimming vocabulary.** 86% of words carry no frequency tag. Keeping only
+  tagged words would drop 278,012 words, 315,281 senses and 503,512 alignments —
+  a very large saving. Rejected for now: it is one-way once users have saved
+  words (D-11), and it risks "not found" on legitimate text. The frequency tags
+  do cover real signage well — 立入禁止, 消火器 and 非常口 are all tagged — but
+  the tail is where scanning surprises come from.

@@ -1,23 +1,28 @@
 name: Claude Code Review
 
+# MANUAL TRIGGER ONLY — run it from the Actions tab when a review is wanted.
+#
+# This previously ran on `pull_request: [opened, synchronize, ready_for_review,
+# reopened]`, which starts a full review on EVERY PUSH to a PR branch. PR #7
+# accumulated eleven runs that way, two of them 18 and 9 minutes long, because
+# the repository commits ~29 MB of third-party dictionary source data (D-55)
+# and the reviewer was reading through it.
+#
+# Do not restore a `pull_request` trigger. If automatic review is ever wanted
+# again, scope it with `paths` to source code only and keep the exclusions
+# below — an unbounded reviewer plus committed datasets burns a token budget in
+# minutes.
+
 on:
-  pull_request:
-    types: [opened, synchronize, ready_for_review, reopened]
-    # Optional: Only run on specific file changes
-    # paths:
-    #   - "src/**/*.ts"
-    #   - "src/**/*.tsx"
-    #   - "src/**/*.js"
-    #   - "src/**/*.jsx"
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Pull request number to review"
+        required: true
+        type: string
 
 jobs:
   claude-review:
-    # Optional: Filter by PR author
-    # if: |
-    #   github.event.pull_request.user.login == 'external-contributor' ||
-    #   github.event.pull_request.user.login == 'new-developer' ||
-    #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
-
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -38,7 +43,28 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
-          prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
-          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
-          # or https://code.claude.com/docs/en/cli-reference for available options
+          # A hard ceiling on the run, independent of the exclusions below.
+          claude_args: '--max-turns 40'
+          prompt: |
+            Review ${{ github.repository }}/pull/${{ inputs.pr_number }}.
 
+            DO NOT read, diff, summarise or analyse any of these paths. They are
+            third-party dictionary source data and generated artifacts committed
+            deliberately (D-55), not project code. Reading them is what made
+            earlier runs consume an entire token budget:
+
+              tools/dictbuild/data/**        ~29 MB of JMdict, KANJIDIC2,
+                                             KanjiVG and JmdictFurigana sources
+              tools/dictbuild/baseline/**    3.5 MB generated key list
+              **/*.db  **/*.gz  **/*.tsv  **/*.tsv.gz
+
+            If the diff touches those paths, note only that they changed and
+            move on. Never open one to inspect its contents.
+
+            Review the Python under tools/dictbuild/*.py, the SQL in
+            schema.sql, the workflows, and the Markdown in docs/. The project's
+            conventions are in CLAUDE.md; design decisions are referenced by id
+            (D-##) in docs/decisions.md and verification cases (V-##) in
+            docs/verification.md.
+
+            Then run: /code-review:code-review ${{ github.repository }}/pull/${{ inputs.pr_number }}
