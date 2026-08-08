@@ -12,7 +12,7 @@ python fetch.py     # sources from the pinned manifest (D-41)
 python build.py     # kanjilens.db from schema.sql + the ingest stages
 ```
 
-Design decisions from the sessions on 2026-08-05/06 are D-38 through D-55, with verification cases V-17 through V-24. Nothing below should be re-litigated without reading those.
+Design decisions from the sessions on 2026-08-05/06 are D-38 through D-55, with verification cases V-17 through V-25. Nothing below should be re-litigated without reading those.
 
 ### Findings that changed the plan
 
