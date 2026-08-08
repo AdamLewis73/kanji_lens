@@ -190,11 +190,19 @@ CREATE INDEX idx_kiw_group ON kanji_in_word (kanji_char, reading_group, word_fre
 
 -- ------------------------------------------------------------- stroke order
 
+-- NOT `WITHOUT ROWID`, unlike every other table here with a non-integer key.
+--
+-- A WITHOUT ROWID table stores row content in the primary-key b-tree, so wide
+-- rows end up on interior pages and inflate the tree. svg_paths averages ~1 KB
+-- per row — by far the widest column in this schema. Measured: making this table
+-- WITHOUT ROWID cost 3.4 MB, swamping the 1.2 MB the coordinate rounding saved.
+-- SQLite's own guidance is that WITHOUT ROWID suits small rows; this is the one
+-- table here that isn't.
 CREATE TABLE strokes (
     kanji_char TEXT PRIMARY KEY REFERENCES kanji(char),
     svg_paths  TEXT NOT NULL   -- JSON array of path 'd' strings, in drawing order.
                                -- Length must equal kanji.stroke_count (V-09).
-) WITHOUT ROWID;
+);
 
 
 -- ------------------------------------------------------ build bookkeeping

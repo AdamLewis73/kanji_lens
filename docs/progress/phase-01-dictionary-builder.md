@@ -5,7 +5,7 @@
 
 ## Current state
 
-`tools/dictbuild/` builds a 104.7 MB `kanjilens.db` in about 45 seconds: `kanji`, `word`, `word_sense`, `example`, `kanji_in_word`, `meta`. All four parsers are in, plus the `changes` diff and a verification harness. Nothing outstanding.
+`tools/dictbuild/` builds a 99.7 MB `kanjilens.db` in about 45 seconds: `kanji`, `word`, `word_sense`, `example`, `kanji_in_word`, `meta`. All four parsers are in, plus the `changes` diff and a verification harness. Nothing outstanding.
 
 ```
 python fetch.py     # sources from the pinned manifest (D-41)
@@ -104,7 +104,7 @@ extracts the asset.
 - [x] `meta` table with build id and per-source header dates (D-41)
 - [x] `changes` table + key-set diff against previous build (D-39, V-19)
 - [x] Indexes for lookup patterns — all six verified by EXPLAIN QUERY PLAN
-- [x] Output size measured — **104.7 MB on disk, 30.4 MB gzipped**
+- [x] Output size measured — **99.7 MB on disk, 30.3 MB gzipped**
 - [x] Attribution text collected — `docs/attribution.md`
 - [x] Verification harness — `verify.py`, **10 of 10 cases pass**
       *(V-05 is a review check with no user DB yet; V-21 and V-23 are Phase 2 UI cases)*
@@ -155,14 +155,39 @@ the hidden rowid b-tree and once in the auto-index.
 
 What was taken, none of it costing v1 functionality:
 
-| Change | Saved |
-|---|---:|
-| `WITHOUT ROWID` on six tables | 7.4 MB, and queries got faster |
-| Dropped `idx_word_reading` | 8.3 MB — no v1 feature looks a word up by reading |
-| SVG coordinates to 1 decimal place | 1.2 MB — 0.009% of a 109-unit canvas |
-| (VACUUM already in the build) | |
+| Object | Before | After | Change |
+|---|---:|---:|---:|
+| `kanji_in_word` | 32.9 MB | 21.7 MB | **−11.2** |
+| `word_sense` | 29.0 MB | 23.0 MB | **−6.0** |
+| `idx_word_reading` | 8.3 MB | — | **−8.3** |
+| `strokes` | 7.5 MB | 6.3 MB | −1.2 |
+| `kanji` | 1.1 MB | 0.9 MB | −0.2 |
+| `idx_kiw_group` | 11.7 MB | 12.5 MB | +0.8 |
+| `word`, `example` | | unchanged | |
 
-**126.2 MB -> 104.7 MB on disk, 45.4 MB -> 30.4 MB gzipped.**
+Three mechanisms, none of which drops a single row:
+
+- **`WITHOUT ROWID`** on `kanji`, `word_sense`, `kanji_in_word`, `changes` and
+  `meta`. SQLite normally gives a table a hidden `rowid` and stores rows in a
+  tree keyed by it; declaring a `PRIMARY KEY` over real columns then builds a
+  *second* tree holding those columns again. `WITHOUT ROWID` stores the rows
+  directly in the key tree — one tree instead of two.
+- **Dropping `idx_word_reading`.** An index is a whole sorted copy of a column
+  plus pointers, 322,323 entries deep. Nothing in v1 looks a word up by its
+  reading; OCR always supplies the written form.
+- **SVG coordinates to one decimal.** 0.009% of a 109-unit canvas — under a
+  tenth of a pixel at any size a phone renders.
+
+`idx_kiw_group` grew 0.8 MB because a secondary index on a `WITHOUT ROWID`
+table must store the full primary key instead of a compact rowid. That is the
+trade, and the 11.2 MB the table itself gave back dwarfs it.
+
+**`strokes` is deliberately NOT `WITHOUT ROWID`.** Making it so cost 3.4 MB and
+swamped the rounding saving, because that layout puts row content on interior
+b-tree pages — fine for narrow rows, bad for the ~1 KB of path data per row
+here. Caught only by measuring per object rather than trusting the total.
+
+**126.2 MB -> 99.7 MB on disk, 45.4 MB -> 30.3 MB gzipped.**
 
 Not taken, and both remain available:
 
