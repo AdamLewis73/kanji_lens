@@ -24,8 +24,11 @@ jobs:
       matrix:
         python: ['3.12', '3.13']
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      # checkout v5+ and setup-python v6+ are the first releases targeting
+      # Node 24; v4/v5 target the deprecated Node 20 and the runner warns.
+      # Do not downgrade.
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
       - name: Run unit tests
@@ -39,8 +42,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: unit
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      # checkout v5+ and setup-python v6+ are the first releases targeting
+      # Node 24; v4/v5 target the deprecated Node 20 and the runner warns.
+      # Do not downgrade.
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
