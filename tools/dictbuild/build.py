@@ -98,6 +98,11 @@ BOUNDS = {
 }
 
 
+# Measured 99.7 MB at build 20260807 (D-56). The band is wide enough for
+# ordinary dictionary drift and narrow enough to catch a layout mistake.
+EXPECTED_SIZE_MB = (90, 115)
+
+
 def _flag(key: str, value: int) -> str:
     limit = BOUNDS.get(key)
     return "   <-- OVER LIMIT" if limit is not None and value > limit else ""
@@ -155,8 +160,23 @@ def main() -> int:
     db.execute("VACUUM")
     db.close()
     after = args.out.stat().st_size
-    print(f"\n{args.out.name}  {after / 1024 / 1024:.1f} MB"
+    mb = after / 1024 / 1024
+    print(f"\n{args.out.name}  {mb:.1f} MB"
           f"  (VACUUM reclaimed {(before - after) / 1024 / 1024:.1f} MB)")
+
+    # A layout regression is invisible in a passing build otherwise. D-56 got the
+    # `strokes` table wrong by 3.4 MB and the total still looked like a win — so
+    # the size carries a band, and stepping outside it asks for the per-object
+    # measurement to be repeated rather than the number to be edited.
+    if args.only:
+        return 0
+    lo, hi = EXPECTED_SIZE_MB
+    if not lo <= mb <= hi:
+        direction = "SMALLER" if mb < lo else "LARGER"
+        print(f"\n  !! {direction} than the expected {lo}-{hi} MB band (D-56).")
+        print(f"     Re-measure per object before accepting: drop each table and")
+        print(f"     index in turn, VACUUM, record the delta. The total hides a")
+        print(f"     single table moving the wrong way.")
     return 0
 
 

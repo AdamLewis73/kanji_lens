@@ -12,7 +12,7 @@ python fetch.py     # sources from the pinned manifest (D-41)
 python build.py     # kanjilens.db from schema.sql + the ingest stages
 ```
 
-Design decisions from the sessions on 2026-08-05/06 are D-38 through D-55, with verification cases V-17 through V-25. Nothing below should be re-litigated without reading those.
+Design decisions from this phase are D-38 through D-59, with verification cases V-17 through V-25. Nothing below should be re-litigated without reading those.
 
 ### Findings that changed the plan
 
@@ -134,6 +134,8 @@ extracts the asset.
 - This script is the most portable asset in the project. It produces a plain SQLite file usable on Android, iOS, or anywhere else.
 
 ## Size breakdown
+
+**Recorded as decisions: D-56 (storage layout) and D-57 (indexing).** Those carry the reasoning and the revert paths; what follows is the measurement they came from.
 
 Measured by dropping each object and re-VACUUMing, on the 126 MB build before
 trimming:

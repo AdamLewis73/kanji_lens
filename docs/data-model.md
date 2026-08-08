@@ -114,6 +114,8 @@ Reading group labels must display on'yomi in **katakana** and kun'yomi in **hira
 
 Built by a desktop Python script (D-10) and loaded via Room's `createFromAsset`. Replaced wholesale on app upgrade, so it **never needs a migration** — if the schema changes, regenerate the file and swap it. Do not build migration machinery for this database.
 
+**99.7 MB on disk, 30.3 MB gzipped** — the gzipped figure is what the APK carries, and the device holds both once Room extracts the asset. Physical layout is D-56 (`WITHOUT ROWID` for narrow rows, plain tables for wide ones) and indexing is D-57 (demand-driven, column order load-bearing). Both carry the per-object measurements; re-measure per object before accepting any layout change, because the total hides a single table moving the wrong way.
+
 Draft schema. Expect revision once the real source files have been inspected:
 
 ```

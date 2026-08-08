@@ -84,6 +84,10 @@ Scan for the relevant entry rather than reading the whole file.
 | D-53 | Obsolete readings are ingested and displayed, marked as archaic | UI / Data |
 | D-54 | Two sense filters with opposite defaults; obscurity is ranking, not a setting | UI |
 | D-55 | The compressed source files are committed to git | Data |
+| D-56 | Dictionary storage layout: `WITHOUT ROWID` for narrow rows only | Data |
+| D-57 | Indexes are demand-driven, and column order is load-bearing | Data |
+| D-58 | The build must be byte-reproducible from identical sources | Data |
+| D-59 | CI review is manual-only; committed datasets are undiffable | Process |
 
 **Bold** entries are the ones whose violation causes silent data corruption or a forced rewrite. They are also listed in `CLAUDE.md`.
 
@@ -414,6 +418,104 @@ About 29 MB across four files, in `tools/dictbuild/data/raw/`.
 *One non-obvious requirement.* `.gitattributes` marks the directory `-text`. Without it git rewrites LF to CRLF on Windows checkouts, changing the bytes of `JmdictFurigana.txt` and therefore its SHA-256 — so the file would fail the verification in `sources.lock.json` on a fresh clone, defeating the entire purpose. Also `-diff`, since a binary diff of a 13 MB gzip helps nobody.
 
 *If this is ever reversed:* removing large files from git means rewriting history. Adding them was the cheap direction; that asymmetry is why the decision waited until real sizes were known.
+
+**D-56 — Dictionary storage layout: `WITHOUT ROWID` for narrow rows, plain tables for wide ones. Measured per object, never by the total.**
+
+The dictionary went from **126.2 MB to 99.7 MB on disk** (45.4 → 30.3 MB gzipped) with **no row removed** — identical counts in every table before and after. All of it is physical layout.
+
+| Object | Before | After | Change | Cause |
+|---|---:|---:|---:|---|
+| `kanji_in_word` | 32.9 MB | 21.7 MB | **−11.2** | `WITHOUT ROWID` |
+| `idx_word_reading` | 8.3 MB | — | **−8.3** | dropped, D-57 |
+| `word_sense` | 29.0 MB | 23.0 MB | **−6.0** | `WITHOUT ROWID` |
+| `strokes` | 7.5 MB | 6.3 MB | −1.2 | coordinate rounding |
+| `kanji` | 1.1 MB | 0.9 MB | −0.2 | `WITHOUT ROWID` |
+| `idx_kiw_group` | 11.7 MB | 12.5 MB | +0.8 | cost of the above |
+| `word`, `example` | | unchanged | | integer primary keys |
+
+### Why `WITHOUT ROWID` helps here
+
+SQLite gives every table a hidden auto-numbered `rowid` and stores rows in a b-tree keyed by it. Declaring a `PRIMARY KEY` over *real* columns then builds a **second** b-tree so rows can be found by that key — and that second tree holds another copy of the key columns.
+
+`kanji_in_word` is keyed on `(kanji_char, word_id, position)` across 574,721 rows, so those columns existed twice. `WITHOUT ROWID` stores the rows directly in the key tree: one tree instead of two. In relational terms, a clustered index rather than a heap plus a secondary index.
+
+Applied to `kanji`, `word_sense`, `kanji_in_word`, `changes` and `meta`.
+
+**Not applied to `word` or `example`** — their primary key *is* `INTEGER PRIMARY KEY`, which already means the rowid, so there is nothing to collapse.
+
+### The exception, and how it was found
+
+**`strokes` is deliberately a plain table.** Making it `WITHOUT ROWID` cost **3.4 MB**, swamping the 1.2 MB the coordinate rounding saved.
+
+A `WITHOUT ROWID` table stores row content in the primary-key b-tree, so wide rows land on *interior* pages and inflate the tree. `svg_paths` averages ~1 KB per row — by far the widest column in the schema. SQLite's own guidance is that the layout suits small rows; this is the one table here that is not.
+
+**This was invisible in the total.** The aggregate said "down 21.5 MB, job done" while one table quietly moved 3.4 MB the wrong way. The measurement that found it — drop each object, `VACUUM`, record the delta — is the method to repeat before trusting any future layout change.
+
+### Coordinate rounding
+
+KanjiVG stores stroke paths to two decimals on a 109-unit canvas. The second decimal is 0.009% of the canvas, under a tenth of a pixel at any size a phone renders. Rounding to one decimal removes ~19% of the path text.
+
+**This is the only lossy change in the build.** Everything else is exact. If stroke rendering ever looks wrong at very large sizes, this is the first thing to suspect and a one-line revert in `ingest_kanjivg.py`.
+
+### Reverting any of this
+
+All of it is contained in `schema.sql` plus `ingest_kanjivg.py`, and the dictionary is disposable (D-38) — change the file, rebuild, ship. No migration, no user-data risk. Re-measure per object afterwards rather than trusting the total.
+
+**D-57 — Indexes are added when a feature needs them, and column order is load-bearing.**
+
+Two lessons from the same table, both expensive, both recorded so they are not repeated.
+
+### No speculative indexes
+
+`idx_word_reading` indexed `word.reading` — a sorted copy of that column across 322,323 rows, **8.3 MB**, about 7% of the database. It would serve looking a kanji word up *by* its reading (typing せんせい to find 先生).
+
+**No v1 feature does that.** The scan pipeline always arrives with the written form from OCR, and for kana-only words `text` equals `reading` so the existing `UNIQUE (text, reading)` already covers them.
+
+Dropped. One line to restore if a kana search box appears.
+
+### Column order decides whether an index is used at all
+
+`idx_kiw_group` was originally `(kanji_char, reading_type, reading_group)`, and the Examples-tab query filtered `reading_type IS NOT NULL`. **SQLite compiles `IS NOT NULL` into a RANGE condition**, and a range on the second column stops the third being usable for equality — so the query scanned every row for the kanji and filtered in memory.
+
+The predicate was redundant anyway: `reading_group` is NULL exactly when `reading_type` is.
+
+Fixing the plan alone was not enough. Ordering by the word's own `freq_rank` still meant joining every row in the group and sorting in a temp b-tree before `LIMIT` could apply, so cost scaled with group size — and the largest groups belong to the commonest kanji, which are the screens users open most. 生/セイ holds 1,462 rows, 手/て holds 1,835.
+
+So `word_freq` is denormalized into `kanji_in_word` and the index carries it third, making the query an ordered index scan that stops after N rows:
+
+> **10.94 ms → 0.079 ms**, identical results. A 138× difference on the app's core screen.
+
+Unranked words are stored as `9999` rather than NULL so a plain ascending scan orders them last (V-04) without a `NULLS LAST` clause the index cannot use.
+
+*The general rule:* check `EXPLAIN QUERY PLAN` for every query the app actually runs, and confirm the plan contains no `USE TEMP B-TREE`. All six current lookup patterns were verified this way.
+
+**D-58 — The build must produce a byte-identical database from identical sources.**
+
+`build_id` is a hash of the source checksums (D-41), so a build from unchanged inputs is *labelled* unchanged. That label is a lie if the output actually varies, and the `changes` diff (D-39) would then report churn between builds that changed nothing.
+
+**The rule: never let unordered iteration decide a stored value.**
+
+The bug that produced this decision: a surface reading can match several readings of the same kanji — 一 is both イチ and イツ, and いっ geminates from either. The matcher iterated a Python `set` of candidates, and **string hashing is randomised per process**, so the winner varied between runs. 一生 resolved to イチ on one build and イツ on the next, from byte-identical inputs.
+
+Nothing errors. Both are real readings of 一. The word simply lands in a different reading group depending on which process built the dictionary.
+
+The fix is also more correct: iterate KANJIDIC2's reading list, which is ordered with the primary reading first, and test membership in the candidate set rather than the reverse. Verified identical across three `PYTHONHASHSEED` values. Covered by V-25.
+
+*Applies to any future ingest stage.* Sets and dicts keyed on strings are fine as lookups; they must not decide which of several candidates gets written.
+
+**D-59 — GitHub review runs only on manual trigger, and committed datasets must be undiffable.**
+
+`claude-code-review.yml` originally triggered on `pull_request: [opened, synchronize, ready_for_review, reopened]`, which starts a full review on **every push to a PR branch**. PR #7 accumulated **eleven runs**. The last two, immediately after ~29 MB of dictionary sources were committed (D-55), ran **18m20s and 9m18s** — the reviewer was reading through the data files. That consumed a large share of a token budget in minutes.
+
+Three layers, all required:
+
+1. **`workflow_dispatch` only**, with a `pr_number` input, plus `--max-turns 40` as a ceiling that holds even if the exclusions fail. Do not restore a `pull_request` trigger; if automatic review is ever wanted, scope it with `paths` to source code only.
+2. **The prompt names the excluded paths** and instructs the reviewer not to open them.
+3. **`.gitattributes` marks them `-diff linguist-generated`.** This is the layer that matters most, because it protects *any* tool reading the repository rather than one workflow. Verified: the 12 MB `JmdictFurigana.txt` reports "Binary files differ" instead of emitting its contents.
+
+`CLAUDE.md` carries a do-not-read table so a local session does not repeat it either. `inspect_sources.py` is the supported way to examine those files' structure.
+
+*Note the asymmetry that made this expensive:* committing the datasets (D-55) was a sound decision, but it combined with an automatic reviewer to produce a cost neither change implied on its own. Any future decision to commit large files should check what reads them automatically.
 
 ---
 
