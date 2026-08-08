@@ -7,13 +7,22 @@ Desktop Python, stdlib only, no install step. Contains no Android code and needs
 ## Usage
 
 ```bash
-python test_dictbuild.py   # unit tests, ~3 ms, no dependencies
-python fetch.py            # download sources listed in sources.json
+python test_dictbuild.py   # 38 unit tests over the pure functions, ~3 ms
+python build.py            # kanjilens.db from schema.sql + the ingest stages
+python verify.py           # the verification cases from docs/verification.md
+```
+
+Both `build.py` and `verify.py` work from a clean checkout with **no network**, because the sources are committed (D-55). `fetch.py` is only needed when refreshing them:
+
+```bash
+python fetch.py            # download per sources.json
 python fetch.py --list     # show the manifest without downloading
 python fetch.py --force    # re-download even if already present
 ```
 
-Downloads land in `data/raw/`, which is gitignored for now. What was actually fetched is recorded in `sources.lock.json`.
+Sources live in `data/raw/` and are committed; what produced the current build is recorded in `sources.lock.json`. Build output goes to `data/build/` and is gitignored.
+
+CI runs all three on every push (`.github/workflows/ci.yml`) — plain Python, no tokens.
 
 ## Why the lock file exists
 
